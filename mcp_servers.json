@@ -1,0 +1,30 @@
+{
+  "servers": [
+    {
+      "name": "filesystem",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/repo/apps"],
+      "env": {},
+      "description": "Read-only access to the apps directory",
+      "teams": []
+    },
+    {
+      "name": "sqlite-analytics",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sqlite", "--db-path", "/data/analytics.db"],
+      "env": {},
+      "description": "SQLite database with app analytics data",
+      "teams": ["data", "engineering"]
+    },
+    {
+      "name": "postgres-main",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres"],
+      "env": {
+        "POSTGRES_CONNECTION_STRING": "postgresql://reader:password@postgres:5432/main"
+      },
+      "description": "Read-only access to the main Postgres database",
+      "teams": ["engineering"]
+    }
+  ]
+}
