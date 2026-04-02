@@ -32,13 +32,13 @@ spec:
               value: {{ .Values.namespaces.workloads | quote }}
           livenessProbe:
             httpGet:
-              path: /health
+              path: /healthz
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
           readinessProbe:
             httpGet:
-              path: /health
+              path: /readyz
               port: http
             initialDelaySeconds: 3
             periodSeconds: 5
