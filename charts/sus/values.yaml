@@ -10,7 +10,7 @@ landing:
   image:
     repository: localhost:5050/sus-landing
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
   replicaCount: 1
   port: 8000
   serviceAccount:

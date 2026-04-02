@@ -77,6 +77,16 @@ class BuildPodManager:
                             client.V1EnvVar(name="GIT_REPO_URL", value=f"https://github.com/sus/{app_slug}.git"),
                             client.V1EnvVar(name="USER_ID", value=user_id),
                             client.V1EnvVar(name="APP_SLUG", value=app_slug),
+                            client.V1EnvVar(
+                                name="ANTHROPIC_API_KEY",
+                                value_from=client.V1EnvVarSource(
+                                    secret_key_ref=client.V1SecretKeySelector(
+                                        name="sus-anthropic-api-key",
+                                        key="ANTHROPIC_API_KEY",
+                                        optional=True,
+                                    ),
+                                ),
+                            ),
                         ]
                         + (
                             [client.V1EnvVar(name="SUS_MCP_CONFIG", value=json.dumps(mcp_config))]

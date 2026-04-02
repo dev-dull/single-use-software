@@ -24,6 +24,7 @@ from .routes.mcp import router as mcp_router
 from .routes.run import router as run_router
 from .routes.sessions import router as sessions_router
 from .routes.skills import router as skills_router
+from .routes.setup import router as setup_router
 from .routes.versions import router as versions_router
 from .sessions import SessionStore
 
@@ -38,6 +39,7 @@ app.include_router(build_router)
 app.include_router(mcp_router)
 app.include_router(run_router)
 app.include_router(sessions_router)
+app.include_router(setup_router)
 app.include_router(skills_router)
 app.include_router(versions_router)
 
@@ -143,6 +145,15 @@ async def index(
         tags=tags or None,
     )
     available_tags = all_tags()
+
+    # Check if API key is configured for the setup banner.
+    api_key_configured = False
+    try:
+        from .api_key import APIKeyManager
+        api_key_configured = APIKeyManager().is_configured()
+    except Exception:
+        pass
+
     return templates.TemplateResponse(
         request,
         "index.html",
@@ -152,5 +163,6 @@ async def index(
             "available_tags": available_tags,
             "active_tags": tags or [],
             "query": q or "",
+            "api_key_configured": api_key_configured,
         },
     )
