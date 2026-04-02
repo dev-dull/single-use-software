@@ -6,3 +6,4 @@ jinja2
 httpx
 aiosqlite
 markdown
+python-multipart

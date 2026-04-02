@@ -108,12 +108,12 @@ async def skills_edit(request: Request, name: str) -> HTMLResponse:
 # ---------------------------------------------------------------------------
 
 
-@router.post("", response_class=HTMLResponse)
+@router.post("", response_model=None)
 async def skills_create(
     request: Request,
     name: str = Form(...),
     content: str = Form(...),
-) -> HTMLResponse | RedirectResponse:
+):
     """Create a new skill from form submission."""
     # Normalise name.
     clean_name = name.strip().lower().replace(" ", "-")
@@ -139,12 +139,12 @@ async def skills_create(
     )
 
 
-@router.post("/{name}/update", response_class=HTMLResponse)
+@router.post("/{name}/update", response_model=None)
 async def skills_update(
     request: Request,
     name: str,
     content: str = Form(...),
-) -> HTMLResponse | RedirectResponse:
+):
     """Update an existing skill (POST override for HTML forms)."""
     validation = _manager.validate_skill(content)
     if not validation["valid"]:
@@ -177,7 +177,7 @@ async def skills_put(request: Request, name: str) -> RedirectResponse:
 
 
 @router.delete("/{name}")
-async def skills_delete(name: str) -> RedirectResponse | HTMLResponse:
+async def skills_delete(name: str):
     """Delete a skill."""
     deleted = _manager.delete_skill(name)
     if not deleted:
@@ -186,7 +186,7 @@ async def skills_delete(name: str) -> RedirectResponse | HTMLResponse:
 
 
 @router.post("/{name}/delete")
-async def skills_delete_via_post(name: str) -> RedirectResponse | HTMLResponse:
+async def skills_delete_via_post(name: str):
     """Delete a skill via POST (for HTML form compatibility)."""
     deleted = _manager.delete_skill(name)
     if not deleted:
