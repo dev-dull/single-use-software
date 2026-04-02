@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="refresh" content="30" />
+  <title>SUS — Usage Analytics</title>
+  <style>
+    :root {
+      --bg: #f5f5f5;
+      --card-bg: #ffffff;
+      --text: #1a1a1a;
+      --muted: #666;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --border: #e0e0e0;
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 2rem;
+    }
+
+    header {
+      max-width: 960px;
+      margin: 0 auto 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    header h1 { font-size: 1.5rem; }
+
+    header a {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: .9rem;
+    }
+    header a:hover { text-decoration: underline; }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1.25rem;
+      max-width: 960px;
+      margin: 0 auto 2rem;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      text-align: center;
+    }
+
+    .stat-card .value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .stat-card .label {
+      font-size: .85rem;
+      color: var(--muted);
+      margin-top: .25rem;
+    }
+
+    .section {
+      max-width: 960px;
+      margin: 0 auto 2rem;
+    }
+
+    .section h2 {
+      font-size: 1.15rem;
+      margin-bottom: .75rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    th, td {
+      padding: .6rem .85rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: .9rem;
+    }
+
+    th {
+      background: var(--bg);
+      font-weight: 600;
+      color: var(--muted);
+      font-size: .8rem;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    .empty-row td {
+      text-align: center;
+      color: var(--muted);
+      padding: 2rem;
+    }
+
+    .refresh-note {
+      max-width: 960px;
+      margin: 0 auto;
+      text-align: center;
+      font-size: .8rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Usage Analytics</h1>
+    <a href="/">&larr; Back to catalog</a>
+  </header>
+
+  <section class="summary">
+    <div class="stat-card">
+      <div class="value">{{ summary.total_users }}</div>
+      <div class="label">Total Users</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">{{ summary.total_builds }}</div>
+      <div class="label">Total Builds</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">{{ summary.total_runs }}</div>
+      <div class="label">Total Runs</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">{{ summary.weekly_active_users }}</div>
+      <div class="label">Weekly Active Users</div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Recent Activity</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Event</th>
+          <th>User</th>
+          <th>Team</th>
+          <th>App</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if events %}
+          {% for event in events %}
+          <tr>
+            <td>{{ event.created_at[:19] }}</td>
+            <td>{{ event.event_type }}</td>
+            <td>{{ event.user_id }}</td>
+            <td>{{ event.team or "—" }}</td>
+            <td>{{ event.app_slug or "—" }}</td>
+          </tr>
+          {% endfor %}
+        {% else %}
+        <tr class="empty-row">
+          <td colspan="5">No events recorded yet.</td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </section>
+
+  <p class="refresh-note">Auto-refreshes every 30 seconds.</p>
+</body>
+</html>
