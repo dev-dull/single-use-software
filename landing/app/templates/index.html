@@ -176,8 +176,14 @@
 <body>
   <header>
     <h1>SUS — Single Use Software</h1>
-    <p>Welcome, {{ identity.display_name }}. Browse, build, or run applications. <a href="/skills" style="color: var(--accent); text-decoration: none; font-size: .85rem; margin-left: .5rem;">Skills</a> <a href="/analytics" style="color: var(--accent); text-decoration: none; font-size: .85rem; margin-left: .5rem;">Analytics</a></p>
+    <p>Welcome, {{ identity.display_name }}. Browse, build, or run applications. <a href="/skills" style="color: var(--accent); text-decoration: none; font-size: .85rem; margin-left: .5rem;">Skills</a> <a href="/analytics" style="color: var(--accent); text-decoration: none; font-size: .85rem; margin-left: .5rem;">Analytics</a> <a href="/setup" style="color: var(--accent); text-decoration: none; font-size: .85rem; margin-left: .5rem;">Setup</a></p>
   </header>
+
+  {% if not api_key_configured %}
+  <div style="max-width: 960px; margin: 0 auto 1.5rem; padding: 1rem 1.25rem; background: #fef3c7; border: 1px solid #fcd34d; border-radius: var(--radius); display: flex; align-items: center; justify-content: space-between;">
+    <span style="font-size: .9rem; color: #92400e;">Build mode requires an Anthropic API key. <a href="/setup" style="color: #92400e; font-weight: 600;">Configure it now</a> to start building apps.</span>
+  </div>
+  {% endif %}
 
   <!-- Search bar -->
   <div class="search-section">
