@@ -24,6 +24,7 @@ from .routes.mcp import router as mcp_router
 from .routes.run import router as run_router
 from .routes.sessions import router as sessions_router
 from .routes.skills import router as skills_router
+from .routes.versions import router as versions_router
 from .sessions import SessionStore
 
 # ---------------------------------------------------------------------------
@@ -38,6 +39,7 @@ app.include_router(mcp_router)
 app.include_router(run_router)
 app.include_router(sessions_router)
 app.include_router(skills_router)
+app.include_router(versions_router)
 
 # Analytics middleware — tracks page views automatically.
 _analytics_tracker = AnalyticsTracker()
