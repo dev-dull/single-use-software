@@ -5,3 +5,4 @@ websockets
 jinja2
 httpx
 aiosqlite
+markdown
