@@ -8,7 +8,10 @@ from pathlib import Path
 from typing import Any
 
 
-def scan_apps(root: str | Path | None = None) -> list[dict[str, Any]]:
+def scan_apps(
+    root: str | Path | None = None,
+    user_groups: list[str] | None = None,
+) -> list[dict[str, Any]]:
     """Walk ``apps/{team}/{app-slug}/`` directories and return metadata.
 
     Each directory that contains a ``sus.json`` file is treated as a
@@ -21,6 +24,12 @@ def scan_apps(root: str | Path | None = None) -> list[dict[str, Any]]:
         Filesystem path to the ``apps/`` directory.  Defaults to the
         ``SUS_APPS_ROOT`` environment variable, falling back to
         ``/repo/apps``.
+    user_groups:
+        If provided, only apps whose ``visibility`` list intersects with
+        *user_groups* are returned.  Apps with an empty ``visibility``
+        list or one that contains ``"default"`` are visible to everyone.
+        When *user_groups* is ``None`` all apps are returned (backwards
+        compatible).
     """
 
     if root is None:
@@ -54,6 +63,14 @@ def scan_apps(root: str | Path | None = None) -> list[dict[str, Any]]:
 
             meta["team"] = team
             meta["slug"] = slug
+
+            # Group-based visibility filtering
+            if user_groups is not None:
+                visibility = meta.get("visibility", [])
+                if visibility and "default" not in visibility:
+                    if not set(visibility) & set(user_groups):
+                        continue
+
             apps.append(meta)
 
     return apps
