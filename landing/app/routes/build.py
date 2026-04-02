@@ -72,9 +72,9 @@ async def build_ui(
             pod_ip = ""
 
     return _templates.TemplateResponse(
+        request,
         "build.html",
-        {
-            "request": request,
+        context={
             "team": team,
             "app_slug": app_slug,
             "pod_ip": pod_ip,

@@ -48,9 +48,9 @@ async def run_ui(
 ) -> HTMLResponse:
     """Render the run-mode page with the app in a full-page iframe."""
     return _templates.TemplateResponse(
+        request,
         "run.html",
-        {
-            "request": request,
+        context={
             "team": team,
             "app_slug": app_slug,
         },

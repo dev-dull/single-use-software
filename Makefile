@@ -1,5 +1,6 @@
 CLUSTER_NAME := sus
-REGISTRY := localhost:5000
+REGISTRY := localhost:5050
+CLUSTER_REGISTRY := sus-registry:5050
 LANDING_IMAGE := $(REGISTRY)/sus-landing
 BUILD_POD_IMAGE := $(REGISTRY)/sus-build
 TAG := dev
@@ -40,12 +41,12 @@ push-pod: ## Push the build pod image to the local registry
 
 deploy: ## Install the Helm chart into the cluster
 	helm install sus ./charts/sus \
-		--set landing.image.repository=$(LANDING_IMAGE) \
+		--set landing.image.repository=$(CLUSTER_REGISTRY)/sus-landing \
 		--set landing.image.tag=$(TAG)
 
 upgrade: ## Upgrade the Helm release with latest values
 	helm upgrade sus ./charts/sus \
-		--set landing.image.repository=$(LANDING_IMAGE) \
+		--set landing.image.repository=$(CLUSTER_REGISTRY)/sus-landing \
 		--set landing.image.tag=$(TAG)
 
 # --- Compound targets ---

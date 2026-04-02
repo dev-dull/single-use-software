@@ -78,9 +78,9 @@ async def index(
     """Render the landing page with the app catalog."""
     catalog = scan_apps()
     return templates.TemplateResponse(
+        request,
         "index.html",
-        {
-            "request": request,
+        context={
             "identity": identity,
             "catalog": catalog,
         },
