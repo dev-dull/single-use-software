@@ -1,0 +1,13 @@
+SUS has been installed.
+
+Namespaces created:
+  - {{ .Values.namespaces.platform }} (control plane)
+  - {{ .Values.namespaces.workloads }} (build and run pods)
+
+Landing page service:
+  {{ include "sus.fullname" . }}-landing.{{ .Values.namespaces.platform }}.svc.cluster.local:{{ .Values.service.port }}
+
+To access the landing page locally, run:
+  kubectl port-forward -n {{ .Values.namespaces.platform }} svc/{{ include "sus.fullname" . }}-landing {{ .Values.service.port }}:{{ .Values.service.port }}
+
+Then open http://localhost:{{ .Values.service.port }} in your browser.

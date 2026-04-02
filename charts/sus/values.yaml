@@ -1,0 +1,35 @@
+# -- Namespace configuration
+namespaces:
+  # -- Namespace for the SUS control plane (landing page pod)
+  platform: sus
+  # -- Namespace for build and run workload pods
+  workloads: sus-workloads
+
+# -- Landing page deployment configuration
+landing:
+  image:
+    repository: localhost:5000/sus-landing
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  port: 8000
+  serviceAccount:
+    name: sus-landing
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# -- Service configuration for the landing page
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+# -- RBAC role name for pod management in the workloads namespace
+rbac:
+  roleName: sus-pod-manager
+  roleBindingName: sus-landing-binding

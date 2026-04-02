@@ -1,0 +1,27 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Values.rbac.roleName }}
+  namespace: {{ .Values.namespaces.workloads }}
+  labels:
+    {{- include "sus.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Values.rbac.roleBindingName }}
+  namespace: {{ .Values.namespaces.workloads }}
+  labels:
+    {{- include "sus.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.landing.serviceAccount.name }}
+    namespace: {{ .Values.namespaces.platform }}
+roleRef:
+  kind: Role
+  name: {{ .Values.rbac.roleName }}
+  apiGroup: rbac.authorization.k8s.io
