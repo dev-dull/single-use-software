@@ -15,6 +15,9 @@ from .cleanup import start_cleanup_loop
 from .config import create_identity_provider, load_config
 from .identity import IdentityProvider, UserIdentity
 from .pods import BuildPodManager
+from .analytics import AnalyticsTracker
+from .middleware import AnalyticsMiddleware
+from .routes.analytics import router as analytics_router
 from .routes.auth import router as auth_router
 from .routes.build import router as build_router
 from .routes.mcp import router as mcp_router
@@ -27,11 +30,16 @@ from .sessions import SessionStore
 # ---------------------------------------------------------------------------
 
 app = FastAPI(title="SUS Landing Page", version="0.1.0")
+app.include_router(analytics_router)
 app.include_router(auth_router)
 app.include_router(build_router)
 app.include_router(mcp_router)
 app.include_router(run_router)
 app.include_router(sessions_router)
+
+# Analytics middleware — tracks page views automatically.
+_analytics_tracker = AnalyticsTracker()
+app.add_middleware(AnalyticsMiddleware, tracker=_analytics_tracker)
 
 
 @app.on_event("startup")
