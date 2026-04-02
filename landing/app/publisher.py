@@ -5,8 +5,11 @@ from __future__ import annotations
 import logging
 
 from .run_pods import RunPodManager
+from .versions import VersionTracker
 
 logger = logging.getLogger(__name__)
+
+_version_tracker = VersionTracker()
 
 
 class Publisher:
@@ -20,14 +23,22 @@ class Publisher:
         """Return the expected container image name for an app."""
         return f"localhost:5000/sus-app-{team}-{app_slug}:latest"
 
-    def publish_app(self, team: str, app_slug: str) -> dict:
+    def publish_app(
+        self,
+        team: str,
+        app_slug: str,
+        commit_hash: str = "unknown",
+        published_by: str = "system",
+        message: str = "",
+    ) -> dict:
         """Execute the publish flow for an app.
 
         1. Determine the image name.
         2. Tear down any existing run pod (rolling update).
         3. Create a new run pod with the published image.
+        4. Record the version in the version tracker.
 
-        Returns a dict with status, pod name, and image.
+        Returns a dict with status, pod name, image, and version.
         """
         image = self.get_app_image(team, app_slug)
 
@@ -49,10 +60,27 @@ class Publisher:
             team=team, app_slug=app_slug, image=image
         )
 
-        logger.info("Published %s/%s — run pod %s", team, app_slug, pod_info["name"])
+        # Record this publish as a new version.
+        version_number = _version_tracker.record_version(
+            team=team,
+            app_slug=app_slug,
+            commit_hash=commit_hash,
+            published_by=published_by,
+            image_tag=image,
+            message=message,
+        )
+
+        logger.info(
+            "Published %s/%s — run pod %s, version %d",
+            team,
+            app_slug,
+            pod_info["name"],
+            version_number,
+        )
 
         return {
             "status": "published",
             "pod_name": pod_info["name"],
             "image": image,
+            "version": version_number,
         }

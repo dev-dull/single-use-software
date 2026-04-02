@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Version History — {{ team }}/{{ app_slug }}</title>
+  <style>
+    :root {
+      --bg: #f5f5f5;
+      --card-bg: #ffffff;
+      --text: #1a1a1a;
+      --muted: #666;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --border: #e0e0e0;
+      --radius: 8px;
+      --green: #16a34a;
+      --green-bg: #f0fdf4;
+      --red: #dc2626;
+      --red-hover: #b91c1c;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 2rem;
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+      margin-bottom: .25rem;
+    }
+
+    header .breadcrumb {
+      font-size: .9rem;
+      color: var(--muted);
+    }
+
+    header .breadcrumb a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    header .breadcrumb a:hover {
+      text-decoration: underline;
+    }
+
+    .version-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .version-table th,
+    .version-table td {
+      padding: .65rem .85rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: .9rem;
+    }
+
+    .version-table th {
+      background: #fafafa;
+      font-weight: 600;
+      font-size: .8rem;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+      color: var(--muted);
+    }
+
+    .version-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .version-table tr.active-row {
+      background: var(--green-bg);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: .15rem .5rem;
+      font-size: .75rem;
+      font-weight: 600;
+      border-radius: 9999px;
+    }
+
+    .badge-active {
+      background: var(--green);
+      color: #fff;
+    }
+
+    .badge-inactive {
+      background: var(--border);
+      color: var(--muted);
+    }
+
+    .btn {
+      display: inline-block;
+      padding: .35rem .7rem;
+      font-size: .8rem;
+      border-radius: var(--radius);
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      font-weight: 500;
+    }
+
+    .btn-rollback {
+      background: var(--red);
+      color: #fff;
+    }
+
+    .btn-rollback:hover {
+      background: var(--red-hover);
+    }
+
+    .btn-rollback:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .commit-hash {
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+      font-size: .82rem;
+      color: var(--muted);
+    }
+
+    .empty-state {
+      text-align: center;
+      color: var(--muted);
+      padding: 3rem 0;
+    }
+
+    .toast {
+      display: none;
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      padding: .75rem 1.25rem;
+      border-radius: var(--radius);
+      font-size: .9rem;
+      font-weight: 500;
+      color: #fff;
+      z-index: 9999;
+    }
+
+    .toast-success { background: var(--green); }
+    .toast-error { background: var(--red); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="breadcrumb"><a href="/">Catalog</a> / {{ team }} / {{ app_slug }} / Versions</div>
+      <h1>Version History</h1>
+    </header>
+
+    {% if versions %}
+    <table class="version-table">
+      <thead>
+        <tr>
+          <th>Version</th>
+          <th>Commit</th>
+          <th>Published By</th>
+          <th>Published At</th>
+          <th>Message</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in versions %}
+        <tr class="{% if v.is_active %}active-row{% endif %}">
+          <td><strong>v{{ v.version }}</strong></td>
+          <td><span class="commit-hash">{{ v.commit_hash[:8] }}</span></td>
+          <td>{{ v.published_by }}</td>
+          <td>{{ v.published_at[:19] }}</td>
+          <td>{{ v.message or "---" }}</td>
+          <td>
+            {% if v.is_active %}
+            <span class="badge badge-active">Active</span>
+            {% else %}
+            <span class="badge badge-inactive">Inactive</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if not v.is_active %}
+            <button
+              class="btn btn-rollback"
+              onclick="rollback('{{ team }}', '{{ app_slug }}', {{ v.version }})"
+            >Rollback</button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <p>No versions have been published for this app yet.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    function rollback(team, appSlug, version) {
+      if (!confirm('Roll back ' + team + '/' + appSlug + ' to version ' + version + '? This will restart the app with the older image.')) {
+        return;
+      }
+
+      var btn = event.target;
+      btn.disabled = true;
+      btn.textContent = 'Rolling back...';
+
+      fetch('/versions/' + team + '/' + appSlug + '/rollback/' + version, {
+        method: 'POST',
+      })
+      .then(function(resp) { return resp.json().then(function(data) { return {ok: resp.ok, data: data}; }); })
+      .then(function(result) {
+        if (result.ok) {
+          showToast('Rolled back to version ' + version + ' successfully.', 'success');
+          setTimeout(function() { location.reload(); }, 1200);
+        } else {
+          showToast('Rollback failed: ' + (result.data.error || 'Unknown error'), 'error');
+          btn.disabled = false;
+          btn.textContent = 'Rollback';
+        }
+      })
+      .catch(function(err) {
+        showToast('Rollback failed: ' + err.message, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Rollback';
+      });
+    }
+
+    function showToast(message, type) {
+      var toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast toast-' + type;
+      toast.style.display = 'block';
+      setTimeout(function() { toast.style.display = 'none'; }, 4000);
+    }
+  </script>
+</body>
+</html>
