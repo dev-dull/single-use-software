@@ -101,6 +101,7 @@ async def build_heartbeat(
         session = wf._sessions.get(user_id, app_slug)
         if session:
             wf._pods.heartbeat(session["pod_name"])
+            wf._sessions.update_last_seen(session["pod_name"])
     except Exception:
         logger.exception("Heartbeat failed for %s/%s", team, app_slug)
     return JSONResponse({"status": "ok"})
