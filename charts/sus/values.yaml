@@ -29,6 +29,23 @@ service:
   port: 80
   targetPort: 8000
 
+# -- Build pod configuration (user editing sessions)
+buildPod:
+  image:
+    repository: localhost:5000/sus-build
+    tag: dev
+    pullPolicy: IfNotPresent
+  ports:
+    terminal: 8080
+    preview: 3000
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
 # -- RBAC role name for pod management in the workloads namespace
 rbac:
   roleName: sus-pod-manager

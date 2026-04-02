@@ -1,9 +1,10 @@
 CLUSTER_NAME := sus
 REGISTRY := localhost:5000
 LANDING_IMAGE := $(REGISTRY)/sus-landing
+BUILD_POD_IMAGE := $(REGISTRY)/sus-build
 TAG := dev
 
-.PHONY: help cluster-up cluster-down build push deploy upgrade dev teardown status logs
+.PHONY: help cluster-up cluster-down build push build-pod push-pod deploy upgrade dev teardown status logs
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -21,11 +22,19 @@ cluster-down: ## Delete k3d cluster
 
 # --- Build and push ---
 
-build: ## Build the landing page container image
+build: ## Build all container images (landing + build pod)
 	docker build -t $(LANDING_IMAGE):$(TAG) ./landing
+	docker build -t $(BUILD_POD_IMAGE):$(TAG) ./build-pod
 
-push: ## Push the landing page image to the local registry
+push: ## Push all images to the local registry
 	docker push $(LANDING_IMAGE):$(TAG)
+	docker push $(BUILD_POD_IMAGE):$(TAG)
+
+build-pod: ## Build the build pod container image
+	docker build -t $(BUILD_POD_IMAGE):$(TAG) ./build-pod
+
+push-pod: ## Push the build pod image to the local registry
+	docker push $(BUILD_POD_IMAGE):$(TAG)
 
 # --- Deploy ---
 
