@@ -2,48 +2,77 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Query, WebSocket, Request
-from fastapi.responses import HTMLResponse, Response
+from pathlib import Path
+
+from fastapi import APIRouter, Query, Request, WebSocket
+from fastapi.responses import HTMLResponse, JSONResponse, Response
+from fastapi.templating import Jinja2Templates
 
 from ..proxy import http_proxy, ws_proxy
 
 router = APIRouter(prefix="/build")
 
-# ---------------------------------------------------------------------------
-# Build UI placeholder (issue #6 will flesh this out)
-# ---------------------------------------------------------------------------
+_templates_dir = Path(__file__).resolve().parent.parent / "templates"
+_templates = Jinja2Templates(directory=str(_templates_dir))
 
-_BUILD_HTML_TEMPLATE = """\
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Build: {team}/{app_slug}</title>
-  <style>
-    body {{ font-family: system-ui, sans-serif; margin: 0; padding: 0; background: #111; color: #eee; }}
-    .header {{ padding: 1rem; background: #1a1a2e; border-bottom: 1px solid #333; }}
-    .panes {{ display: flex; height: calc(100vh - 56px); }}
-    .terminal, .preview {{ flex: 1; border: 1px solid #333; margin: 4px; display: flex;
-      align-items: center; justify-content: center; font-size: 1.2rem; color: #888; }}
-  </style>
-</head>
-<body>
-  <div class="header">Build mode: {team}/{app_slug}</div>
-  <div class="panes">
-    <div class="terminal">[terminal placeholder]</div>
-    <div class="preview">[preview placeholder]</div>
-  </div>
-</body>
-</html>
-"""
+# ---------------------------------------------------------------------------
+# Build UI
+# ---------------------------------------------------------------------------
 
 
 @router.get("/{team}/{app_slug}", response_class=HTMLResponse)
-async def build_ui(team: str, app_slug: str) -> HTMLResponse:
-    """Placeholder build UI page."""
-    html = _BUILD_HTML_TEMPLATE.format(team=team, app_slug=app_slug)
-    return HTMLResponse(content=html)
+async def build_ui(
+    request: Request,
+    team: str,
+    app_slug: str,
+    pod_ip: str = Query("", alias="pod_ip"),
+) -> HTMLResponse:
+    """Render the build-mode UI with terminal and preview panes."""
+    return _templates.TemplateResponse(
+        "build.html",
+        {
+            "request": request,
+            "team": team,
+            "app_slug": app_slug,
+            "pod_ip": pod_ip,
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Heartbeat, Save, Publish
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{team}/{app_slug}/heartbeat")
+async def build_heartbeat(
+    team: str,
+    app_slug: str,
+    pod_ip: str = Query("", alias="pod_ip"),
+) -> JSONResponse:
+    """Heartbeat endpoint to keep the build pod alive."""
+    # TODO: wire to BuildPodManager.heartbeat(pod_name) once integrated
+    return JSONResponse({"status": "ok"})
+
+
+@router.post("/{team}/{app_slug}/save")
+async def build_save(
+    team: str,
+    app_slug: str,
+    pod_ip: str = Query("", alias="pod_ip"),
+) -> JSONResponse:
+    """Placeholder save endpoint."""
+    return JSONResponse({"status": "saved"})
+
+
+@router.post("/{team}/{app_slug}/publish")
+async def build_publish(
+    team: str,
+    app_slug: str,
+    pod_ip: str = Query("", alias="pod_ip"),
+) -> JSONResponse:
+    """Placeholder publish endpoint."""
+    return JSONResponse({"status": "published"})
 
 
 # ---------------------------------------------------------------------------

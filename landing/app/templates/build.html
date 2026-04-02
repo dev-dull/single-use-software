@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Build: {{ team }}/{{ app_slug }}</title>
+
+  <!-- xterm.js -->
+  <link rel="stylesheet" href="https://unpkg.com/@xterm/xterm@5.5.0/css/xterm.css" />
+  <script src="https://unpkg.com/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+  <script src="https://unpkg.com/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
+
+  <style>
+    :root {
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-header: #1a1a2e;
+      --border-color: #30363d;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --accent: #58a6ff;
+      --accent-hover: #79b8ff;
+      --btn-save: #238636;
+      --btn-save-hover: #2ea043;
+      --btn-publish: #8957e5;
+      --btn-publish-hover: #a371f7;
+      --divider-width: 6px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    /* --- Header --- */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 48px;
+      padding: 0 16px;
+      background: var(--bg-header);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .header-left a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.15s;
+    }
+
+    .header-left a:hover {
+      color: var(--accent);
+    }
+
+    .app-name {
+      font-weight: 600;
+      font-size: 15px;
+      color: var(--text-primary);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 6px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      color: #fff;
+    }
+
+    .btn-save {
+      background: var(--btn-save);
+    }
+    .btn-save:hover {
+      background: var(--btn-save-hover);
+    }
+
+    .btn-publish {
+      background: var(--btn-publish);
+    }
+    .btn-publish:hover {
+      background: var(--btn-publish-hover);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* --- Panes --- */
+    .panes {
+      display: flex;
+      height: calc(100vh - 48px);
+      background: var(--bg-primary);
+    }
+
+    .terminal-pane {
+      flex: 0 0 60%;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-secondary);
+      min-width: 200px;
+      overflow: hidden;
+    }
+
+    .terminal-pane-header {
+      padding: 6px 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      user-select: none;
+    }
+
+    #terminal-container {
+      flex: 1;
+      padding: 4px;
+      overflow: hidden;
+    }
+
+    .divider {
+      flex: 0 0 var(--divider-width);
+      background: var(--border-color);
+      cursor: col-resize;
+      transition: background 0.15s;
+      user-select: none;
+    }
+
+    .divider:hover,
+    .divider.active {
+      background: var(--accent);
+    }
+
+    .preview-pane {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 200px;
+      overflow: hidden;
+    }
+
+    .preview-pane-header {
+      padding: 6px 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      user-select: none;
+    }
+
+    #preview-iframe {
+      flex: 1;
+      border: none;
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <a href="/">&larr; Catalog</a>
+      <span class="app-name">{{ team }}/{{ app_slug }}</span>
+    </div>
+    <div class="header-right">
+      <button class="btn btn-save" id="btn-save" onclick="doSave()">Save</button>
+      <button class="btn btn-publish" id="btn-publish" onclick="doPublish()">Publish</button>
+    </div>
+  </div>
+
+  <!-- Split panes -->
+  <div class="panes">
+    <div class="terminal-pane" id="terminal-pane">
+      <div class="terminal-pane-header">Terminal</div>
+      <div id="terminal-container"></div>
+    </div>
+    <div class="divider" id="divider"></div>
+    <div class="preview-pane" id="preview-pane">
+      <div class="preview-pane-header">Preview</div>
+      <iframe id="preview-iframe"
+              src="/build/{{ team }}/{{ app_slug }}/preview/?pod_ip={{ pod_ip }}">
+      </iframe>
+    </div>
+  </div>
+
+  <script>
+    // -----------------------------------------------------------------------
+    // Config
+    // -----------------------------------------------------------------------
+    const TEAM = "{{ team }}";
+    const APP_SLUG = "{{ app_slug }}";
+    const POD_IP = "{{ pod_ip }}";
+    const BASE = `/build/${TEAM}/${APP_SLUG}`;
+
+    // -----------------------------------------------------------------------
+    // Terminal setup
+    // -----------------------------------------------------------------------
+    const term = new Terminal({
+      cursorBlink: true,
+      fontSize: 14,
+      fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
+      theme: {
+        background: '#161b22',
+        foreground: '#e6edf3',
+        cursor: '#58a6ff',
+        selectionBackground: '#264f78',
+      },
+    });
+    const fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(document.getElementById('terminal-container'));
+    fitAddon.fit();
+
+    // WebSocket connection
+    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${location.host}${BASE}/ws?pod_ip=${encodeURIComponent(POD_IP)}`;
+    let ws = null;
+
+    function connectWs() {
+      ws = new WebSocket(wsUrl);
+      ws.binaryType = 'arraybuffer';
+
+      ws.onopen = () => {
+        term.writeln('\x1b[32mConnected to build pod.\x1b[0m');
+      };
+
+      ws.onmessage = (event) => {
+        if (event.data instanceof ArrayBuffer) {
+          term.write(new Uint8Array(event.data));
+        } else {
+          term.write(event.data);
+        }
+      };
+
+      ws.onclose = () => {
+        term.writeln('\r\n\x1b[31mConnection closed.\x1b[0m');
+      };
+
+      ws.onerror = () => {
+        term.writeln('\r\n\x1b[31mWebSocket error.\x1b[0m');
+      };
+    }
+
+    term.onData((data) => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(data);
+      }
+    });
+
+    connectWs();
+
+    // -----------------------------------------------------------------------
+    // Resize handling
+    // -----------------------------------------------------------------------
+    window.addEventListener('resize', () => fitAddon.fit());
+
+    // -----------------------------------------------------------------------
+    // Resizable divider
+    // -----------------------------------------------------------------------
+    const divider = document.getElementById('divider');
+    const terminalPane = document.getElementById('terminal-pane');
+    const panes = document.querySelector('.panes');
+    let isDragging = false;
+
+    divider.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      divider.classList.add('active');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const rect = panes.getBoundingClientRect();
+      const offset = e.clientX - rect.left;
+      const total = rect.width;
+      const pct = Math.min(Math.max((offset / total) * 100, 15), 85);
+      terminalPane.style.flex = `0 0 ${pct}%`;
+      fitAddon.fit();
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!isDragging) return;
+      isDragging = false;
+      divider.classList.remove('active');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      fitAddon.fit();
+    });
+
+    // -----------------------------------------------------------------------
+    // Heartbeat
+    // -----------------------------------------------------------------------
+    setInterval(() => {
+      fetch(`${BASE}/heartbeat?pod_ip=${encodeURIComponent(POD_IP)}`, {
+        method: 'POST',
+      }).catch(() => {});
+    }, 30000);
+
+    // -----------------------------------------------------------------------
+    // Save / Publish
+    // -----------------------------------------------------------------------
+    async function doSave() {
+      const btn = document.getElementById('btn-save');
+      btn.disabled = true;
+      try {
+        const resp = await fetch(`${BASE}/save?pod_ip=${encodeURIComponent(POD_IP)}`, {
+          method: 'POST',
+        });
+        const data = await resp.json();
+        if (data.status === 'saved') {
+          btn.textContent = 'Saved!';
+          setTimeout(() => { btn.textContent = 'Save'; }, 2000);
+        }
+      } catch (err) {
+        console.error('Save failed:', err);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function doPublish() {
+      const btn = document.getElementById('btn-publish');
+      btn.disabled = true;
+      try {
+        const resp = await fetch(`${BASE}/publish?pod_ip=${encodeURIComponent(POD_IP)}`, {
+          method: 'POST',
+        });
+        const data = await resp.json();
+        if (data.status === 'published') {
+          btn.textContent = 'Published!';
+          setTimeout(() => { btn.textContent = 'Publish'; }, 2000);
+        }
+      } catch (err) {
+        console.error('Publish failed:', err);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
