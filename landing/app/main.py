@@ -11,12 +11,14 @@ from fastapi.templating import Jinja2Templates
 
 from .catalog import scan_apps
 from .identity import IdentityProvider, SingleUserProvider, UserIdentity
+from .routes.build import router as build_router
 
 # ---------------------------------------------------------------------------
 # Application & templates
 # ---------------------------------------------------------------------------
 
 app = FastAPI(title="SUS Landing Page", version="0.1.0")
+app.include_router(build_router)
 
 _templates_dir = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(_templates_dir))
