@@ -3,3 +3,4 @@ uvicorn[standard]
 kubernetes
 websockets
 jinja2
+httpx
