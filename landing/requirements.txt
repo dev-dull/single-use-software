@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+kubernetes
+websockets
+jinja2
