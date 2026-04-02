@@ -43,6 +43,39 @@ session start.
 - Never write credentials or secrets to files — use environment variables injected at runtime.
 - No access to production environments under any circumstance.
 
+## Discovering and Loading Team-Specific Skills
+
+At the start of every build session, load relevant guidance skills from
+`/repo/claude/skills/`. Skills teach Claude about domain-specific conventions,
+table schemas, KPI formulas, and display patterns.
+
+### Loading rules
+
+1. **Always load the baseline skill**: Read `/repo/claude/skills/example.md`
+   into context at session start. It contains platform-wide conventions that
+   apply to every app.
+
+2. **Match skills to the user's team**: When a user is working on an app in
+   `apps/{team}/`, check if `/repo/claude/skills/{team}.md` exists. If it
+   does, load it. For example:
+   - `apps/finance/budget-tracker/` → load `claude/skills/finance.md`
+   - `apps/marketing/campaign-dashboard/` → load `claude/skills/marketing.md`
+   - `apps/customer-success/health-scores/` → load `claude/skills/customer-success.md`
+
+3. **Load multiple skills when relevant**: If the app spans multiple domains
+   (e.g., a finance app that also uses marketing attribution data), load all
+   applicable skills. Use the app description in `sus.json` and the user's
+   requests to determine relevance.
+
+4. **Skills are read-only context**: Do not modify skill files during a build
+   session. They are reference material, not runtime configuration.
+
+5. **Skill authoring**: If a user wants to create or edit a skill, direct
+   them to follow the guide at `/repo/claude/skills/AUTHORING.md` and submit
+   a PR to `claude/skills/`.
+
+---
+
 ## Working Directory
 
 All work happens under `/repo`. The monorepo is cloned here at session start.
