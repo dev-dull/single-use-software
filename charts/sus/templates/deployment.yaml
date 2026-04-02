@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sus.fullname" . }}-landing
+  namespace: {{ .Values.namespaces.platform }}
+  labels:
+    {{- include "sus.labels" . | nindent 4 }}
+    app.kubernetes.io/component: landing
+spec:
+  replicas: {{ .Values.landing.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "sus.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: landing
+  template:
+    metadata:
+      labels:
+        {{- include "sus.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: landing
+    spec:
+      serviceAccountName: {{ .Values.landing.serviceAccount.name }}
+      containers:
+        - name: landing
+          image: "{{ .Values.landing.image.repository }}:{{ .Values.landing.image.tag }}"
+          imagePullPolicy: {{ .Values.landing.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.landing.port }}
+              protocol: TCP
+          env:
+            - name: SUS_WORKLOADS_NAMESPACE
+              value: {{ .Values.namespaces.workloads | quote }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.landing.resources | nindent 12 }}

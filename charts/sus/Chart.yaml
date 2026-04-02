@@ -1,0 +1,11 @@
+apiVersion: v2
+name: sus
+description: SUS (Single Use Software) — a self-hosted platform for building and running disposable apps with Claude Code
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - sus
+  - claude-code
+  - single-use-software
+home: https://github.com/alastairdrong/sus
