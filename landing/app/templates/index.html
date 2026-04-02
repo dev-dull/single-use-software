@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SUS — Single Use Software</title>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <style>
     :root {
       --bg: #f5f5f5;
@@ -34,6 +35,91 @@
     header h1 { font-size: 1.5rem; }
     header p  { color: var(--muted); margin-top: .25rem; }
 
+    /* Search bar */
+    .search-section {
+      max-width: 960px;
+      margin: 0 auto 1rem;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: .6rem 1rem;
+      font-size: 1rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card-bg);
+      color: var(--text);
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    .search-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+    }
+
+    .search-input::placeholder { color: #aaa; }
+
+    /* Tag filter bar */
+    .tag-bar {
+      max-width: 960px;
+      margin: 0 auto 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: .4rem;
+    }
+
+    .tag-pill {
+      display: inline-block;
+      padding: .2rem .65rem;
+      font-size: .78rem;
+      font-weight: 500;
+      border-radius: 9999px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      color: var(--muted);
+      transition: all .15s;
+      user-select: none;
+    }
+
+    .tag-pill:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .tag-pill--active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .tag-pill--active:hover {
+      background: var(--accent-hover);
+      color: #fff;
+    }
+
+    .tag-pill--card {
+      cursor: default;
+      font-size: .72rem;
+      padding: .15rem .5rem;
+      background: #eef2ff;
+      color: var(--accent);
+      border-color: #c7d2fe;
+    }
+
+    .tag-pill--card:hover {
+      color: var(--accent);
+      border-color: #c7d2fe;
+    }
+
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .3rem;
+    }
+
+    /* Catalog grid */
     .catalog {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -52,19 +138,9 @@
       gap: .5rem;
     }
 
-    .card h2 {
-      font-size: 1.1rem;
-    }
-
-    .card .meta {
-      font-size: .85rem;
-      color: var(--muted);
-    }
-
-    .card .description {
-      flex: 1;
-      font-size: .95rem;
-    }
+    .card h2 { font-size: 1.1rem; }
+    .card .meta { font-size: .85rem; color: var(--muted); }
+    .card .description { flex: 1; font-size: .95rem; }
 
     .card .actions {
       display: flex;
@@ -83,16 +159,9 @@
       font-weight: 500;
     }
 
-    .btn-build {
-      background: var(--accent);
-      color: #fff;
-    }
+    .btn-build { background: var(--accent); color: #fff; }
     .btn-build:hover { background: var(--accent-hover); }
-
-    .btn-run {
-      background: var(--border);
-      color: var(--text);
-    }
+    .btn-run { background: var(--border); color: var(--text); }
     .btn-run:hover { background: #d0d0d0; }
 
     .empty {
@@ -110,24 +179,106 @@
     <p>Welcome, {{ identity.display_name }}. Browse, build, or run applications.</p>
   </header>
 
-  {% if catalog %}
-  <section class="catalog">
+  <!-- Search bar -->
+  <div class="search-section">
+    <input
+      class="search-input"
+      type="search"
+      name="q"
+      placeholder="Search apps by name, description, or team..."
+      value="{{ query }}"
+      hx-get="/api/catalog/html"
+      hx-trigger="input changed delay:200ms, search"
+      hx-target="#catalog-grid"
+      hx-include="[name='q'], [name='tags']"
+    />
+  </div>
+
+  <!-- Tag filter pills -->
+  {% if available_tags %}
+  <div class="tag-bar" id="tag-bar">
+    {% for tag in available_tags %}
+    <span
+      class="tag-pill{% if tag in active_tags %} tag-pill--active{% endif %}"
+      data-tag="{{ tag }}"
+      onclick="toggleTag(this)"
+    >{{ tag }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Hidden inputs for active tags (used by hx-include) -->
+  <div id="tag-inputs">
+    {% for tag in active_tags %}
+    <input type="hidden" name="tags" value="{{ tag }}" />
+    {% endfor %}
+  </div>
+
+  <!-- Catalog grid -->
+  <section class="catalog" id="catalog-grid">
+    {% if catalog %}
     {% for app in catalog %}
     <div class="card">
       <h2>{{ app.name }}</h2>
-      <div class="meta">{{ app.team }} &middot; {{ app.get("owner", "—") }}</div>
+      <div class="meta">{{ app.team }} &middot; {{ app.get("owner", "\u2014") }}</div>
       <div class="description">{{ app.get("description", "") }}</div>
+      {% if app.get("tags") %}
+      <div class="card-tags">
+        {% for tag in app.tags %}
+        <span class="tag-pill tag-pill--card">{{ tag }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
       <div class="actions">
         <a class="btn btn-build" href="/build/{{ app.team }}/{{ app.slug }}">Build</a>
         <a class="btn btn-run" href="/run/{{ app.team }}/{{ app.slug }}">Run</a>
       </div>
     </div>
     {% endfor %}
+    {% else %}
+    <div class="empty" style="grid-column:1/-1">
+      <p>No applications found. Start building!</p>
+    </div>
+    {% endif %}
   </section>
-  {% else %}
-  <div class="empty">
-    <p>No applications found. Start building!</p>
-  </div>
-  {% endif %}
+
+  <script>
+    function toggleTag(el) {
+      el.classList.toggle('tag-pill--active');
+      syncTagInputs();
+      triggerSearch();
+    }
+
+    function syncTagInputs() {
+      var container = document.getElementById('tag-inputs');
+      container.innerHTML = '';
+      document.querySelectorAll('.tag-pill--active[data-tag]').forEach(function(pill) {
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'tags';
+        input.value = pill.getAttribute('data-tag');
+        container.appendChild(input);
+      });
+    }
+
+    function triggerSearch() {
+      htmx.ajax('GET', '/api/catalog/html', {
+        target: '#catalog-grid',
+        values: getFilterValues()
+      });
+    }
+
+    function getFilterValues() {
+      var vals = {};
+      var q = document.querySelector('.search-input').value;
+      if (q) vals.q = q;
+      var tags = [];
+      document.querySelectorAll('#tag-inputs input[name="tags"]').forEach(function(el) {
+        tags.push(el.value);
+      });
+      if (tags.length) vals.tags = tags;
+      return vals;
+    }
+  </script>
 </body>
 </html>
