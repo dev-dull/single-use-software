@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Any
 
@@ -10,9 +11,13 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from .catalog import scan_apps
+from .cleanup import start_cleanup_loop
 from .identity import IdentityProvider, SingleUserProvider, UserIdentity
+from .pods import BuildPodManager
 from .routes.build import router as build_router
 from .routes.run import router as run_router
+from .routes.sessions import router as sessions_router
+from .sessions import SessionStore
 
 # ---------------------------------------------------------------------------
 # Application & templates
@@ -21,6 +26,17 @@ from .routes.run import router as run_router
 app = FastAPI(title="SUS Landing Page", version="0.1.0")
 app.include_router(build_router)
 app.include_router(run_router)
+app.include_router(sessions_router)
+
+
+@app.on_event("startup")
+async def _start_cleanup_task() -> None:
+    """Launch the background cleanup loop when the app starts."""
+    pod_manager = BuildPodManager()
+    session_store = SessionStore()
+    asyncio.create_task(
+        start_cleanup_loop(pod_manager, session_store),
+    )
 
 _templates_dir = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(_templates_dir))
