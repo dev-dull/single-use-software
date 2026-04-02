@@ -20,11 +20,15 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 RUN npm install -g @anthropic-ai/claude-code
 
 # Create working directory
-RUN mkdir -p /repo/claude
+RUN mkdir -p /repo/claude/skills
 
 # Copy CLAUDE.md with read-only permissions
 COPY CLAUDE.md /repo/claude/CLAUDE.md
 RUN chmod 444 /repo/claude/CLAUDE.md
+
+# Copy skill definitions with read-only permissions
+COPY claude/skills/ /repo/claude/skills/
+RUN chmod 444 /repo/claude/skills/*.md
 
 WORKDIR /repo
 

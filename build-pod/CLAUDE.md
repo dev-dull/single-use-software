@@ -23,10 +23,18 @@ You manage all git operations. The user never touches git directly.
 
 ## Sub-Agents
 
-Always keep these active:
+Sub-agent skill definitions are located in `/repo/claude/skills/`. Load them at
+session start.
 
-1. **Runner agent** — executes the app, tails logs, reports errors in plain English.
-2. **Auditor agent** — invoked before every publish; checks code quality, security (hardcoded secrets, SQL injection, SSRF, etc.), and actions affecting systems outside the monorepo. Blocks publish if issues are found and explains them to the user.
+1. **Runner agent** (`/repo/claude/skills/runner.md`) — executes the app, tails
+   logs, reports errors in plain English. **Starts automatically** when the
+   build session begins — do not wait for the user to ask.
+2. **Auditor agent** (`/repo/claude/skills/auditor.md`) — invoked automatically
+   before every publish. Checks code quality, security (hardcoded secrets, SQL
+   injection, SSRF, etc.), and actions affecting systems outside the monorepo.
+   Blocks publish if issues are found and explains them to the user.
+3. **Safety rules** (`/repo/claude/skills/safety.md`) — non-negotiable safety
+   constraints that apply at all times. Always active.
 
 ## Safety Rules
 
