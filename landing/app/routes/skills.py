@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import markdown
@@ -16,8 +17,8 @@ router = APIRouter(prefix="/skills")
 _templates_dir = Path(__file__).resolve().parent.parent / "templates"
 _templates = Jinja2Templates(directory=str(_templates_dir))
 
-# Skills live in the repo root under claude/skills/.
-_skills_dir = Path(__file__).resolve().parent.parent.parent.parent / "claude" / "skills"
+# Skills directory: from env var, or fallback to repo structure.
+_skills_dir = Path(os.environ.get("SUS_SKILLS_DIR", str(Path(__file__).resolve().parent.parent.parent.parent / "claude" / "skills")))
 _manager = SkillsManager(str(_skills_dir))
 
 

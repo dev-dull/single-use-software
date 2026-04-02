@@ -24,7 +24,7 @@ cluster-down: ## Delete k3d cluster
 # --- Build and push ---
 
 build: ## Build all container images (landing + build pod)
-	docker build -t $(LANDING_IMAGE):$(TAG) ./landing
+	docker build -t $(LANDING_IMAGE):$(TAG) -f ./landing/Dockerfile .
 	docker build -t $(BUILD_POD_IMAGE):$(TAG) ./build-pod
 
 push: ## Push all images to the local registry
