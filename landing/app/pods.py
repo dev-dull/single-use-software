@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 from datetime import datetime, timezone
 
@@ -46,6 +47,7 @@ class BuildPodManager:
         user_id: str,
         app_slug: str,
         branch: str,
+        mcp_config: dict | None = None,
     ) -> client.V1Pod:
         return client.V1Pod(
             metadata=client.V1ObjectMeta(
@@ -75,7 +77,12 @@ class BuildPodManager:
                             client.V1EnvVar(name="GIT_REPO_URL", value=f"https://github.com/sus/{app_slug}.git"),
                             client.V1EnvVar(name="USER_ID", value=user_id),
                             client.V1EnvVar(name="APP_SLUG", value=app_slug),
-                        ],
+                        ]
+                        + (
+                            [client.V1EnvVar(name="SUS_MCP_CONFIG", value=json.dumps(mcp_config))]
+                            if mcp_config
+                            else []
+                        ),
                         resources=client.V1ResourceRequirements(
                             requests={"cpu": self._cpu_request, "memory": self._mem_request},
                             limits={"cpu": self._cpu_limit, "memory": self._mem_limit},
@@ -104,11 +111,21 @@ class BuildPodManager:
     # Public API
     # ------------------------------------------------------------------
 
-    def create_build_pod(self, user_id: str, app_slug: str, branch: str) -> str:
-        """Create a build pod and return its name."""
+    def create_build_pod(
+        self,
+        user_id: str,
+        app_slug: str,
+        branch: str,
+        mcp_config: dict | None = None,
+    ) -> str:
+        """Create a build pod and return its name.
+
+        If *mcp_config* is provided it is JSON-encoded and injected into
+        the pod as the ``SUS_MCP_CONFIG`` environment variable.
+        """
         short = self._short_hash(user_id, app_slug)
         name = f"build-{user_id}-{short}"
-        manifest = self._pod_manifest(name, user_id, app_slug, branch)
+        manifest = self._pod_manifest(name, user_id, app_slug, branch, mcp_config=mcp_config)
         self._core.create_namespaced_pod(namespace=self._namespace, body=manifest)
         return name
 

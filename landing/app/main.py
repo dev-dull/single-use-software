@@ -15,6 +15,7 @@ from .cleanup import start_cleanup_loop
 from .identity import IdentityProvider, SingleUserProvider, UserIdentity
 from .pods import BuildPodManager
 from .routes.build import router as build_router
+from .routes.mcp import router as mcp_router
 from .routes.run import router as run_router
 from .routes.sessions import router as sessions_router
 from .sessions import SessionStore
@@ -25,6 +26,7 @@ from .sessions import SessionStore
 
 app = FastAPI(title="SUS Landing Page", version="0.1.0")
 app.include_router(build_router)
+app.include_router(mcp_router)
 app.include_router(run_router)
 app.include_router(sessions_router)
 
