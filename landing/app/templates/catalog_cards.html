@@ -1,0 +1,24 @@
+{% if catalog %}
+{% for app in catalog %}
+<div class="card">
+  <h2>{{ app.name }}</h2>
+  <div class="meta">{{ app.team }} &middot; {{ app.get("owner", "\u2014") }}</div>
+  <div class="description">{{ app.get("description", "") }}</div>
+  {% if app.get("tags") %}
+  <div class="card-tags">
+    {% for tag in app.tags %}
+    <span class="tag-pill tag-pill--card">{{ tag }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <div class="actions">
+    <a class="btn btn-build" href="/build/{{ app.team }}/{{ app.slug }}">Build</a>
+    <a class="btn btn-run" href="/run/{{ app.team }}/{{ app.slug }}">Run</a>
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="empty" style="grid-column:1/-1">
+  <p>No applications match your search.</p>
+</div>
+{% endif %}

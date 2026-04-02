@@ -5,5 +5,6 @@
   "team": "example",
   "created_at": "2026-03-29",
   "visibility": ["default"],
-  "default_stack": "python+htmx"
+  "default_stack": "python+htmx",
+  "tags": ["demo", "getting-started"]
 }
