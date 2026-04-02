@@ -6,6 +6,7 @@ import logging
 from datetime import datetime, timezone
 
 from .pods import BuildPodManager
+from .publisher import Publisher
 from .sessions import SessionStore
 
 logger = logging.getLogger(__name__)
@@ -22,9 +23,11 @@ class GitWorkflowManager:
         self,
         pod_manager: BuildPodManager,
         session_store: SessionStore,
+        publisher: Publisher | None = None,
     ) -> None:
         self._pods = pod_manager
         self._sessions = session_store
+        self._publisher = publisher
 
     # ------------------------------------------------------------------
     # Helpers
@@ -151,7 +154,21 @@ class GitWorkflowManager:
             app_slug,
             branch,
         )
-        return {"status": "publish_requested", "branch": branch}
+
+        # If a publisher is configured, also create/update the run pod.
+        publish_result = None
+        if self._publisher is not None:
+            try:
+                publish_result = self._publisher.publish_app(team=team, app_slug=app_slug)
+                logger.info("Run pod published: %s", publish_result)
+            except Exception:
+                logger.exception("Failed to publish run pod for %s/%s", team, app_slug)
+
+        return {
+            "status": "publish_requested",
+            "branch": branch,
+            "publish": publish_result,
+        }
 
     def end_session(self, user_id: str, team: str, app_slug: str) -> None:
         """Tear down the build pod and remove the session record."""
