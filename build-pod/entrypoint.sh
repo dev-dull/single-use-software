@@ -37,6 +37,23 @@ fi
 
 cd /repo
 
+# --- Auto-commit loop -----------------------------------------------------
+# Runs in the background every 5 minutes.  If there are uncommitted changes
+# it creates a lightweight "autosave" commit so work is never lost.
+
+_autosave_loop() {
+    while true; do
+        sleep 300  # 5 minutes
+        # Only commit if there are tracked or untracked changes
+        if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+            git add -A
+            git commit -m "chore: autosave" --no-verify 2>/dev/null || true
+        fi
+    done
+}
+
+_autosave_loop &
+
 # --- Start Claude Code CLI ------------------------------------------------
 # Launch Claude Code in WebSocket mode so the landing page can proxy a
 # terminal session from the browser.
