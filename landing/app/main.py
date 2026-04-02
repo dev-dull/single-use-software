@@ -12,8 +12,10 @@ from fastapi.templating import Jinja2Templates
 
 from .catalog import scan_apps
 from .cleanup import start_cleanup_loop
-from .identity import IdentityProvider, SingleUserProvider, UserIdentity
+from .config import create_identity_provider, load_config
+from .identity import IdentityProvider, UserIdentity
 from .pods import BuildPodManager
+from .routes.auth import router as auth_router
 from .routes.build import router as build_router
 from .routes.run import router as run_router
 from .routes.sessions import router as sessions_router
@@ -24,6 +26,7 @@ from .sessions import SessionStore
 # ---------------------------------------------------------------------------
 
 app = FastAPI(title="SUS Landing Page", version="0.1.0")
+app.include_router(auth_router)
 app.include_router(build_router)
 app.include_router(run_router)
 app.include_router(sessions_router)
@@ -45,7 +48,7 @@ templates = Jinja2Templates(directory=str(_templates_dir))
 # Identity dependency
 # ---------------------------------------------------------------------------
 
-_identity_provider: IdentityProvider = SingleUserProvider()
+_identity_provider: IdentityProvider = create_identity_provider(load_config())
 
 
 def get_identity_provider() -> IdentityProvider:
@@ -83,7 +86,7 @@ async def api_catalog(
     identity: UserIdentity = Depends(resolve_identity),
 ) -> list[dict[str, Any]]:
     """Return the discovered app catalog as JSON."""
-    return scan_apps()
+    return scan_apps(user_groups=list(identity.groups) if identity.groups else None)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -92,7 +95,7 @@ async def index(
     identity: UserIdentity = Depends(resolve_identity),
 ) -> HTMLResponse:
     """Render the landing page with the app catalog."""
-    catalog = scan_apps()
+    catalog = scan_apps(user_groups=list(identity.groups) if identity.groups else None)
     return templates.TemplateResponse(
         request,
         "index.html",
