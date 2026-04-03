@@ -66,8 +66,13 @@ app.add_middleware(NoCacheMiddleware)
 
 
 @app.on_event("startup")
-async def _start_cleanup_task() -> None:
-    """Launch the background cleanup loop when the app starts."""
+async def _start_background_tasks() -> None:
+    """Launch background tasks when the app starts."""
+    # Repo sync — clone/pull the monorepo for the catalog.
+    from .repo_sync import start_sync_loop
+    asyncio.create_task(start_sync_loop())
+
+    # Idle pod cleanup.
     pod_manager = BuildPodManager()
     session_store = SessionStore()
     asyncio.create_task(

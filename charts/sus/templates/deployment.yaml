@@ -32,6 +32,16 @@ spec:
               value: {{ .Values.namespaces.workloads | quote }}
             - name: SUS_BUILD_IMAGE
               value: "{{ .Values.buildPod.image.repository }}:{{ .Values.buildPod.image.tag }}"
+            - name: SUS_GIT_REPO_URL
+              value: {{ .Values.gitRepo.url | quote }}
+            - name: SUS_REPO_CLONE_DIR
+              value: /data/repo
+          volumeMounts:
+            - name: repo-data
+              mountPath: /data
+      volumes:
+        - name: repo-data
+          emptyDir: {}
           livenessProbe:
             httpGet:
               path: /healthz

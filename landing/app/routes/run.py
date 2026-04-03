@@ -116,6 +116,16 @@ async def run_proxy(
         except Exception:
             logger.exception("Failed to find build pod for %s/%s", team, app_slug)
 
+    # 4. Fall back to serving static files from the repo clone.
+    if not pod_ip:
+        from ..repo_sync import get_apps_root
+        app_dir = get_apps_root() / team / app_slug
+        serve_path = path.strip("/") if path.strip("/") else "index.html"
+        static_file = app_dir / serve_path
+        if static_file.is_file():
+            from fastapi.responses import FileResponse
+            return FileResponse(static_file)
+
     if not pod_ip:
         return Response(
             content="This app hasn't been published yet. Build it first!",
