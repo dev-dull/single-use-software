@@ -10,7 +10,6 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 
-from ..pods import BuildPodManager
 from ..proxy import http_proxy
 from ..published_apps import PublishedAppStore
 from ..run_pods import RunPodManager
@@ -105,18 +104,7 @@ async def run_proxy(
         except Exception:
             logger.exception("Failed to look up run pod for %s/%s", team, app_slug)
 
-    # 3. Fall back to finding a running build pod for this app.
-    if not pod_ip:
-        try:
-            build_mgr = BuildPodManager()
-            for pod in build_mgr.list_build_pods():
-                if pod.get("labels", {}).get("sus.dev/app") == app_slug and pod.get("phase") == "Running":
-                    pod_ip = pod.get("pod_ip")
-                    break
-        except Exception:
-            logger.exception("Failed to find build pod for %s/%s", team, app_slug)
-
-    # 4. Fall back to serving static files from the repo clone.
+    # 3. Fall back to serving static files from the repo clone.
     if not pod_ip:
         from ..repo_sync import get_apps_root
         app_dir = get_apps_root() / team / app_slug
