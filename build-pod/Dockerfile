@@ -37,6 +37,9 @@ RUN chmod 444 /repo/claude/CLAUDE.md
 COPY claude/skills/ /repo/claude/skills/
 RUN chmod 444 /repo/claude/skills/*.md
 
+# Create non-root user for Claude Code (it refuses to run as root)
+RUN useradd -m -s /bin/bash sus && chown -R sus:sus /repo
+
 WORKDIR /repo
 
 # Copy and set up entrypoint
@@ -48,4 +51,5 @@ RUN chmod +x /entrypoint.sh
 #   3000 — App preview
 EXPOSE 8080 3000
 
+USER sus
 ENTRYPOINT ["/entrypoint.sh"]
