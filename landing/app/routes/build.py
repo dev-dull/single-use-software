@@ -249,9 +249,23 @@ async def build_preview(
 ) -> Response:
     """Proxy HTTP requests to the build pod's app preview server."""
     if pod_ip:
-        return await http_proxy(request, pod_ip=pod_ip, pod_port=3000, path=f"/{path}")
+        resp = await http_proxy(request, pod_ip=pod_ip, pod_port=3000, path=f"/{path}")
+        if resp.status_code != 502:
+            return resp
 
-    return Response(
-        content="The app preview will appear here once you start building.",
-        status_code=503,
+    # Show a spinner while waiting for the app server to start.
+    return HTMLResponse(
+        content="""<!DOCTYPE html>
+<html><head><style>
+  body { display:flex; align-items:center; justify-content:center; height:100vh; margin:0;
+         font-family:system-ui,sans-serif; background:#fafafa; color:#888; }
+  .wrap { text-align:center; }
+  .spinner { width:32px; height:32px; border:3px solid #e0e0e0; border-top:3px solid #2563eb;
+             border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 1rem; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  p { font-size:.9rem; }
+</style></head><body>
+  <div class="wrap"><div class="spinner"></div><p>Loading preview...</p></div>
+</body></html>""",
+        status_code=200,
     )
