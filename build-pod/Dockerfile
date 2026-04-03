@@ -39,6 +39,7 @@ RUN chmod 444 /repo/claude/skills/*.md
 
 # Create non-root user for Claude Code (it refuses to run as root)
 RUN useradd -m -s /bin/bash sus && chown -R sus:sus /repo
+ENV PATH="/home/sus/.local/bin:${PATH}"
 
 # Pre-configure Claude Code to suppress welcome screen, model banners, and
 # update notices so users land straight in the session.

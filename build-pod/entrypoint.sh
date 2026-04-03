@@ -100,8 +100,8 @@ _start_server() {
     case "$new_type" in
         python)
             cd /repo
-            pip install -q -r requirements.txt 2>/dev/null || true
-            uvicorn main:app --host 0.0.0.0 --port 3000 --reload &
+            pip install --user -q -r requirements.txt 2>/dev/null || true
+            python3 -m uvicorn main:app --host 0.0.0.0 --port 3000 --reload &
             SERVER_PID=$!
             ;;
         node)
