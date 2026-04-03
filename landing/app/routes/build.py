@@ -245,12 +245,31 @@ async def build_preview(
     team: str,
     app_slug: str,
     path: str,
-    pod_ip: str = Query(..., alias="pod_ip"),
+    pod_ip: str = Query("", alias="pod_ip"),
 ) -> Response:
-    """Proxy HTTP requests to the build pod's app preview server."""
-    return await http_proxy(
-        request,
-        pod_ip=pod_ip,
-        pod_port=3000,
-        path=f"/{path}",
-    )
+    """Proxy HTTP requests to the build pod's app preview server.
+
+    Falls back to serving static files from the baked-in apps directory
+    so the preview shows the current app version even before a server starts.
+    """
+    # Try the build pod first.
+    if pod_ip:
+        try:
+            resp = await http_proxy(request, pod_ip=pod_ip, pod_port=3000, path=f"/{path}")
+            if resp.status_code != 502:
+                return resp
+        except Exception:
+            pass
+
+    # Fall back to static files from the apps directory.
+    import os
+    from pathlib import Path
+    from fastapi.responses import FileResponse
+
+    apps_root = Path(os.environ.get("SUS_APPS_ROOT", "/repo/apps"))
+    serve_path = path.strip("/") if path.strip("/") else "index.html"
+    static_file = apps_root / team / app_slug / serve_path
+    if static_file.is_file():
+        return FileResponse(static_file)
+
+    return Response(content="No preview available yet.", status_code=503)
