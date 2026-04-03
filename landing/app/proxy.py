@@ -140,11 +140,14 @@ async def http_proxy(
         # simplicity we forward the full query string for now.
         target_url = f"{target_url}?{request.url.query}"
 
-    # Build outbound headers, stripping hop-by-hop entries.
+    # Build outbound headers, stripping hop-by-hop and encoding headers.
+    # We strip Accept-Encoding so the backend sends uncompressed content,
+    # avoiding Content-Length mismatches from httpx auto-decompression.
+    _STRIP_REQUEST = _HOP_BY_HOP | {"host", "accept-encoding"}
     out_headers: dict[str, str] = {
         k: v
         for k, v in request.headers.items()
-        if k.lower() not in _HOP_BY_HOP and k.lower() != "host"
+        if k.lower() not in _STRIP_REQUEST
     }
 
     body = await request.body()
@@ -164,11 +167,14 @@ async def http_proxy(
                 status_code=502,
             )
 
-    # Filter hop-by-hop headers from upstream response.
+    # Filter hop-by-hop and encoding headers from upstream response.
+    # Content-Length may be stale if httpx decompressed, so we let
+    # Starlette recalculate it from the actual body.
+    _STRIP_RESPONSE = _HOP_BY_HOP | {"content-length", "content-encoding"}
     resp_headers: dict[str, str] = {
         k: v
         for k, v in upstream.headers.items()
-        if k.lower() not in _HOP_BY_HOP
+        if k.lower() not in _STRIP_RESPONSE
     }
 
     return Response(

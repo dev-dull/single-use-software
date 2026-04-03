@@ -24,6 +24,7 @@ from .routes.mcp import router as mcp_router
 from .routes.run import router as run_router
 from .routes.sessions import router as sessions_router
 from .routes.skills import router as skills_router
+from .routes.debug import router as debug_router
 from .routes.setup import router as setup_router
 from .routes.versions import router as versions_router
 from .sessions import SessionStore
@@ -36,6 +37,7 @@ app = FastAPI(title="SUS Landing Page", version="0.1.0")
 app.include_router(analytics_router)
 app.include_router(auth_router)
 app.include_router(build_router)
+app.include_router(debug_router)
 app.include_router(mcp_router)
 app.include_router(run_router)
 app.include_router(sessions_router)
