@@ -1,48 +1,42 @@
 #!/usr/bin/expect -f
 #
 # Auto-accept Claude Code startup prompts, then hand off to the user.
-# This wraps `claude --dangerously-skip-permissions --model sonnet`
-# and presses Enter/y for any interactive consent dialogs.
+# Claude Code uses a TUI with ANSI escape codes, so we match loosely
+# and send Enter/y for any consent dialogs.
 
-set timeout 30
+set timeout 10
 
 # Start Claude Code
 spawn claude --dangerously-skip-permissions --model sonnet
 
-# Loop: watch for known prompts and auto-accept them.
-# Once we see the actual Claude prompt (❯ or >), hand off to the user.
-set max_prompts 10
+# Auto-accept up to 10 prompts by sending Enter repeatedly.
+# Claude's TUI prompts use highlighted selections — pressing Enter
+# accepts the default/highlighted option.
 set i 0
-
-while {$i < $max_prompts} {
+while {$i < 10} {
     expect {
-        # API key selection — press Enter to accept default
-        -re {Use.*API key|Which.*key|Select.*key|API key} {
-            send "\r"
-            incr i
-        }
-        # Bypass mode acceptance — press y then Enter
-        -re {bypass|I accept|understand.*risk|dangerous|Do you want to proceed} {
-            send "y\r"
-            incr i
-        }
-        # Yes/No prompts — accept
-        -re {\(Y/n\)|\(y/N\)|\[Y/n\]|\[y/N\]} {
-            send "y\r"
-            incr i
-        }
-        # Press Enter prompts
-        -re {Press Enter|press enter|continue} {
-            send "\r"
-            incr i
-        }
-        # Claude is ready — we see the prompt character
-        -re {❯|> $|^\$ } {
+        # The Claude prompt character means we're in the session
+        -re {❯} {
             break
         }
-        # Timeout — assume prompts are done
+        -re {> $} {
+            break
+        }
+        # Any prompt asking for confirmation — send Enter
+        -re {\?} {
+            sleep 0.5
+            send "\r"
+            incr i
+        }
+        # Catch-all: if we see any new output, wait a moment then press Enter
+        # This handles TUI prompts that don't have clear text markers
+        -re {.+} {
+            # Don't spam Enter on every output — only after a pause
+        }
         timeout {
-            break
+            # After timeout with no new output, try pressing Enter
+            send "\r"
+            incr i
         }
     }
 }

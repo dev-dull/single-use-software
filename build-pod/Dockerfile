@@ -47,7 +47,7 @@ ENV PATH="/home/sus/.local/bin:${PATH}"
 # - ~/.claude.json: mark onboarding complete, trust /repo folder,
 #   accept bypass mode, skip all first-run dialogs
 RUN mkdir -p /home/sus/.claude && \
-    echo '{"autoUpdaterStatus":"disabled"}' > /home/sus/.claude/settings.json && \
+    echo '{"autoUpdaterStatus":"disabled","defaultMode":"bypassPermissions"}' > /home/sus/.claude/settings.json && \
     echo '{ \
       "numStartups": 100, \
       "hasCompletedOnboarding": true, \
