@@ -23,7 +23,7 @@ class BuildPodManager:
 
         self._core = client.CoreV1Api()
         self._namespace = os.environ.get("SUS_WORKLOADS_NAMESPACE", "sus-workloads")
-        self._image = os.environ.get("SUS_BUILD_IMAGE", "localhost:5000/sus-build:dev")
+        self._image = os.environ.get("SUS_BUILD_IMAGE", "sus-registry:5050/sus-build:dev")
 
         # Resource defaults (overridable via env)
         self._cpu_request = os.environ.get("SUS_BUILD_CPU_REQUEST", "250m")

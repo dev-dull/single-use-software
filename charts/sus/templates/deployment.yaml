@@ -30,6 +30,8 @@ spec:
           env:
             - name: SUS_WORKLOADS_NAMESPACE
               value: {{ .Values.namespaces.workloads | quote }}
+            - name: SUS_BUILD_IMAGE
+              value: "{{ .Values.buildPod.image.repository }}:{{ .Values.buildPod.image.tag }}"
           livenessProbe:
             httpGet:
               path: /healthz

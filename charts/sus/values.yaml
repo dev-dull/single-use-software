@@ -32,7 +32,7 @@ service:
 # -- Build pod configuration (user editing sessions)
 buildPod:
   image:
-    repository: localhost:5050/sus-build
+    repository: sus-registry:5050/sus-build
     tag: dev
     pullPolicy: IfNotPresent
   ports:
