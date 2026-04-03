@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     git \
     openssh-client \
+    expect \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 20.x (LTS) for Claude Code CLI
@@ -72,9 +73,10 @@ ENV DISABLE_AUTOUPDATER=1
 
 WORKDIR /repo
 
-# Copy and set up entrypoint
+# Copy and set up entrypoint + expect wrapper
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY claude-wrapper.sh /claude-wrapper.sh
+RUN chmod +x /entrypoint.sh /claude-wrapper.sh
 
 # Expose ports:
 #   8080 — Claude Code terminal (ttyd WebSocket)

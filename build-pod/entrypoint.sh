@@ -175,4 +175,4 @@ _runner_loop &
 export DISABLE_AUTOUPDATER=1
 
 exec ttyd --port 8080 --writable --base-path / \
-    claude --dangerously-skip-permissions --model sonnet
+    /claude-wrapper.sh
