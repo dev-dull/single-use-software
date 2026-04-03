@@ -20,14 +20,22 @@ git config --global user.name  "${GIT_USER_NAME:-sus-user}"
 git config --global user.email "${GIT_USER_EMAIL:-sus@localhost}"
 git config --global --add safe.directory /repo
 
+# --- Build authenticated repo URL -----------------------------------------
+
+REPO_URL="${GIT_REPO_URL:-}"
+if [ -n "${GIT_TOKEN:-}" ] && [ -n "$REPO_URL" ]; then
+    # Inject token into HTTPS URL: https://TOKEN@github.com/...
+    REPO_URL=$(echo "$REPO_URL" | sed "s|^https://|https://${GIT_TOKEN}@|")
+fi
+
 # --- Clone or init --------------------------------------------------------
 
 cd /repo
 
-if [ -n "${GIT_REPO_URL:-}" ]; then
-    # Clone the monorepo if not already cloned.
+if [ -n "$REPO_URL" ]; then
+    # Clone the app repo.
     if [ ! -d "/repo/.git" ]; then
-        git clone "${GIT_REPO_URL}" /tmp/repo-clone
+        git clone "$REPO_URL" /tmp/repo-clone
         cp -a /tmp/repo-clone/. /repo/
         rm -rf /tmp/repo-clone
     fi

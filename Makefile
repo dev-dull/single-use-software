@@ -4,7 +4,7 @@ CLUSTER_REGISTRY := sus-registry:5050
 LANDING_IMAGE := $(REGISTRY)/sus-landing
 BUILD_POD_IMAGE := $(REGISTRY)/sus-build
 TAG := dev
-GIT_REPO_URL ?= https://github.com/dev-dull/single-use-software.git
+GIT_REPO_URL ?= https://github.com/dev-dull/sus-starter-pack.git
 
 .PHONY: help cluster-up cluster-down build push build-pod push-pod deploy upgrade dev teardown status logs
 
