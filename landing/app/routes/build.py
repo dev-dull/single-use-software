@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from pathlib import Path
 from typing import Optional
@@ -63,10 +64,18 @@ async def build_ui(
     if not pod_ip:
         try:
             wf = _get_workflow()
-            # TODO: replace hardcoded user_id with real auth
             user_id = "anonymous"
             info = wf.start_session(user_id=user_id, team=team, app_slug=app_slug)
             pod_ip = info.get("pod_ip") or ""
+
+            # Pod may still be scheduling — poll briefly for an IP.
+            if not pod_ip and info.get("pod_name"):
+                for _ in range(10):
+                    await asyncio.sleep(2)
+                    pod_info = wf._pods.get_build_pod(info["pod_name"])
+                    if pod_info and pod_info.get("pod_ip"):
+                        pod_ip = pod_info["pod_ip"]
+                        break
         except Exception:
             logger.exception("Failed to start build session for %s/%s", team, app_slug)
             pod_ip = ""
