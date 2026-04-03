@@ -46,13 +46,20 @@ async def ws_proxy(
     build pod at ``ws://{pod_ip}:{pod_port}``, and relays messages in both
     directions until either side closes or an error occurs.
     """
-    await websocket.accept()
+    # Accept with the subprotocol the browser requested (e.g. "tty" for ttyd).
+    requested_protocols = websocket.headers.get("sec-websocket-protocol", "").split(",")
+    requested_protocols = [p.strip() for p in requested_protocols if p.strip()]
+    accept_protocol = requested_protocols[0] if requested_protocols else None
+    await websocket.accept(subprotocol=accept_protocol)
 
-    backend_url = f"ws://{pod_ip}:{pod_port}"
+    backend_url = f"ws://{pod_ip}:{pod_port}/ws"
     backend_ws: Any = None
 
     try:
-        backend_ws = await websockets.connect(backend_url)
+        backend_ws = await websockets.connect(
+            backend_url,
+            subprotocols=requested_protocols or None,
+        )
     except Exception:
         logger.exception("Failed to connect to backend at %s", backend_url)
         await websocket.close(code=1011, reason="backend unavailable")
