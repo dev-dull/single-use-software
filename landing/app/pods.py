@@ -193,6 +193,21 @@ class BuildPodManager:
         )
         return [self._pod_to_dict(p) for p in pods.items]
 
+    def exec_in_pod(self, pod_name: str, command: list[str]) -> str:
+        """Execute a command inside a build pod and return stdout."""
+        from kubernetes.stream import stream
+        resp = stream(
+            self._core.connect_get_namespaced_pod_exec,
+            name=pod_name,
+            namespace=self._namespace,
+            command=command,
+            stderr=True,
+            stdin=False,
+            stdout=True,
+            tty=False,
+        )
+        return resp
+
     def heartbeat(self, pod_name: str) -> None:
         """Update the last-seen annotation on the pod."""
         now = datetime.now(timezone.utc).isoformat()

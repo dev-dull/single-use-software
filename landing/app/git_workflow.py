@@ -170,7 +170,31 @@ class GitWorkflowManager:
         if not pod_ip:
             return {"status": "error", "detail": "build pod not running"}
 
-        # Register the build pod as the run target.
+        # Commit and push changes from the build pod to the app repo.
+        try:
+            # Stage and commit all changes.
+            self._pods.exec_in_pod(pod_name, [
+                "bash", "-c",
+                "cd /repo && git add -A && "
+                "git diff --cached --quiet || "
+                "git commit -m 'publish: update ${APP_TEAM}/${APP_SLUG}'"
+            ])
+
+            # Push to main (merge the branch).
+            # First checkout main, merge the branch, push, then switch back.
+            self._pods.exec_in_pod(pod_name, [
+                "bash", "-c",
+                "cd /repo && "
+                "git checkout main 2>/dev/null && "
+                "git merge --no-edit ${GIT_BRANCH} && "
+                "git push origin main && "
+                "git checkout ${GIT_BRANCH}"
+            ])
+            logger.info("Pushed published changes for %s/%s to app repo", team, app_slug)
+        except Exception:
+            logger.exception("Failed to push to app repo for %s/%s — saving locally only", team, app_slug)
+
+        # Register the build pod as the run target for immediate serving.
         from .published_apps import PublishedAppStore
         store = PublishedAppStore()
         store.publish(
@@ -180,6 +204,13 @@ class GitWorkflowManager:
             pod_name=pod_name,
             published_by=user_id,
         )
+
+        # Trigger a repo sync so the landing page picks up the changes.
+        try:
+            from .repo_sync import clone_or_pull
+            clone_or_pull()
+        except Exception:
+            pass
 
         logger.info(
             "Published %s/%s — proxying run to build pod %s (%s)",
