@@ -38,6 +38,14 @@ if [ -n "${GIT_REPO_URL:-}" ] && [ "${GIT_REPO_URL}" != "https://github.com/sus/
     fi
 else
     # No valid repo URL — initialize a local git repo for autosave.
+    # Copy existing app files into the working directory if available.
+    if [ -n "${APP_TEAM:-}" ] && [ -n "${APP_SLUG:-}" ]; then
+        app_src="/repo/apps/${APP_TEAM}/${APP_SLUG}"
+        if [ -d "$app_src" ]; then
+            cp -a "$app_src"/. /repo/ 2>/dev/null || true
+        fi
+    fi
+
     if [ ! -d "/repo/.git" ]; then
         git init
         git add -A

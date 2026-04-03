@@ -30,12 +30,15 @@ RUN ARCH=$(uname -m) && \
 RUN mkdir -p /repo/claude/skills
 
 # Copy CLAUDE.md with read-only permissions
-COPY CLAUDE.md /repo/claude/CLAUDE.md
+COPY build-pod/CLAUDE.md /repo/claude/CLAUDE.md
 RUN chmod 444 /repo/claude/CLAUDE.md
 
 # Copy skill definitions with read-only permissions
-COPY claude/skills/ /repo/claude/skills/
+COPY build-pod/claude/skills/ /repo/claude/skills/
 RUN chmod 444 /repo/claude/skills/*.md
+
+# Copy app catalog so existing apps can be loaded into build sessions
+COPY apps/ /repo/apps/
 
 # Create non-root user for Claude Code (it refuses to run as root)
 RUN useradd -m -s /bin/bash sus && chown -R sus:sus /repo
@@ -73,7 +76,7 @@ ENV DISABLE_AUTOUPDATER=1
 WORKDIR /repo
 
 # Copy and set up entrypoint
-COPY entrypoint.sh /entrypoint.sh
+COPY build-pod/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Expose ports:
