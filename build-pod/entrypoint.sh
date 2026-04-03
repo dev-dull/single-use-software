@@ -60,7 +60,7 @@ fi
 # --- Set up app working directory -----------------------------------------
 # Claude works inside apps/{team}/{app-slug}/ per the monorepo layout.
 
-APP_DIR="/repo/apps/${APP_TEAM:-_new}/${APP_SLUG:-_new}"
+APP_DIR="/repo/${APP_TEAM:-_new}/${APP_SLUG:-_new}"
 mkdir -p "$APP_DIR"
 
 # If this is a new app, create a minimal sus.json.
