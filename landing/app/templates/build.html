@@ -126,12 +126,32 @@
     }
 
     .preview-pane-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       padding: 6px 12px;
       font-size: 12px;
       color: var(--text-secondary);
       background: var(--bg-secondary);
       border-bottom: 1px solid var(--border-color);
       user-select: none;
+    }
+
+    .btn-refresh {
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: transparent;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .btn-refresh:hover {
+      color: var(--accent);
+      border-color: var(--accent);
     }
 
     #preview-iframe {
@@ -172,7 +192,10 @@
     </div>
     <div class="divider" id="divider"></div>
     <div class="preview-pane" id="preview-pane">
-      <div class="preview-pane-header">Preview</div>
+      <div class="preview-pane-header">
+        <span>Preview</span>
+        <button class="btn-refresh" id="btn-refresh" onclick="refreshPreview()">Refresh</button>
+      </div>
       <iframe id="preview-iframe"
               src="/build/{{ team }}/{{ app_slug }}/preview/?pod_ip={{ pod_ip }}"></iframe>
     </div>
@@ -236,6 +259,73 @@
       } finally {
         btn.disabled = false;
       }
+    }
+
+    // --- Preview auto-refresh ---
+    // Periodically reload the preview iframe until it loads successfully.
+    let previewLoaded = false;
+    let previewTimer = null;
+
+    function refreshPreview() {
+      const iframe = document.getElementById('preview-iframe');
+      if (iframe) {
+        iframe.src = iframe.src;
+      }
+    }
+
+    function checkPreview() {
+      const iframe = document.getElementById('preview-iframe');
+      if (!iframe) return;
+
+      try {
+        // Try to access iframe content — if cross-origin, this throws.
+        // A successful load with actual content means the app is up.
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        const body = doc && doc.body;
+        if (body) {
+          const text = body.innerText || '';
+          // Check for common error indicators
+          if (text.includes('Bad Gateway') ||
+              text.includes('502') ||
+              text.includes('503') ||
+              text.includes('Connection refused')) {
+            // Still erroring — reload
+            refreshPreview();
+          } else if (text.trim().length > 0) {
+            // Content loaded successfully — stop polling
+            previewLoaded = true;
+            if (previewTimer) {
+              clearInterval(previewTimer);
+              previewTimer = null;
+            }
+          }
+        }
+      } catch (e) {
+        // Cross-origin: we can't inspect content, but the iframe loaded
+        // something. If it were a gateway error from our own proxy it would
+        // be same-origin, so a cross-origin load likely means success.
+        previewLoaded = true;
+        if (previewTimer) {
+          clearInterval(previewTimer);
+          previewTimer = null;
+        }
+      }
+    }
+
+    // Start polling every 5 seconds
+    previewTimer = setInterval(() => {
+      if (!previewLoaded) {
+        checkPreview();
+      }
+    }, 5000);
+
+    // Also check once after initial load
+    const previewIframe = document.getElementById('preview-iframe');
+    if (previewIframe) {
+      previewIframe.addEventListener('load', () => {
+        // Small delay to let content render
+        setTimeout(checkPreview, 500);
+      });
     }
 
     async function doPublish() {
