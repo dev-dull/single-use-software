@@ -41,11 +41,31 @@ RUN chmod 444 /repo/claude/skills/*.md
 RUN useradd -m -s /bin/bash sus && chown -R sus:sus /repo
 ENV PATH="/home/sus/.local/bin:${PATH}"
 
-# Pre-configure Claude Code to suppress welcome screen, model banners, and
-# update notices so users land straight in the session.
+# Pre-configure Claude Code to suppress ALL interactive prompts:
+# - ~/.claude/settings.json: disable auto-updater
+# - ~/.claude.json: mark onboarding complete, trust /repo folder,
+#   accept bypass mode, skip all first-run dialogs
 RUN mkdir -p /home/sus/.claude && \
     echo '{"autoUpdaterStatus":"disabled"}' > /home/sus/.claude/settings.json && \
-    chown -R sus:sus /home/sus/.claude
+    echo '{ \
+      "numStartups": 100, \
+      "hasCompletedOnboarding": true, \
+      "lastOnboardingVersion": "9.9.9", \
+      "lastReleaseNotesSeen": "9.9.9", \
+      "autoUpdates": false, \
+      "hasSeenTasksHint": true, \
+      "opus46FeedSeenCount": 100, \
+      "opus1mMergeNoticeSeenCount": 100, \
+      "projects": { \
+        "/repo": { \
+          "allowedTools": [], \
+          "hasTrustDialogAccepted": true, \
+          "hasCompletedProjectOnboarding": true, \
+          "projectOnboardingSeenCount": 100 \
+        } \
+      } \
+    }' > /home/sus/.claude.json && \
+    chown -R sus:sus /home/sus/.claude /home/sus/.claude.json
 
 # Disable the Claude Code auto-updater at the environment level
 ENV DISABLE_AUTOUPDATER=1
