@@ -1,10 +1,10 @@
 {
-  "name": "Hello World",
-  "description": "A minimal example application to verify the SUS catalog.",
+  "name": "Hello, World.",
+  "description": "A delightful confetti-powered hello world — built entirely by Claude in a SUS build session.",
   "owner": "operator@localhost",
   "team": "example",
-  "created_at": "2026-03-29",
+  "created_at": "2026-04-03",
   "visibility": ["default"],
-  "default_stack": "python+htmx",
-  "tags": ["demo", "getting-started"]
+  "default_stack": "static",
+  "tags": ["demo", "getting-started", "confetti"]
 }
