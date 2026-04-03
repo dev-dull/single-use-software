@@ -177,6 +177,11 @@ async def http_proxy(
         if k.lower() not in _STRIP_RESPONSE
     }
 
+    # Disable browser caching on all proxied responses.
+    resp_headers["cache-control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp_headers["pragma"] = "no-cache"
+    resp_headers["expires"] = "0"
+
     return Response(
         content=upstream.content,
         status_code=upstream.status_code,

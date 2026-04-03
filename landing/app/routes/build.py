@@ -276,6 +276,12 @@ async def build_preview(
         # Serve with a header so the auto-refresh JS knows this is a fallback.
         resp = FileResponse(static_file)
         resp.headers["X-SUS-Fallback"] = "true"
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
         return resp
 
-    return Response(content="No preview available yet.", status_code=503)
+    return Response(
+        content="No preview available yet.", status_code=503,
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"},
+    )

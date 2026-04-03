@@ -124,7 +124,11 @@ async def run_proxy(
         serve_path = path.strip("/") if path.strip("/") else "index.html"
         static_file = app_dir / serve_path
         if static_file.is_file():
-            return FileResponse(static_file)
+            resp = FileResponse(static_file)
+            resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            resp.headers["Pragma"] = "no-cache"
+            resp.headers["Expires"] = "0"
+            return resp
 
     if not pod_ip:
         return Response(
