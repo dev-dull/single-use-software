@@ -175,8 +175,13 @@
 </head>
 <body>
   <header>
-    <h1>SUS — Single Use Software</h1>
-    <p>Welcome, {{ identity.display_name }}. Browse, build, or run applications. <a href="/skills" style="color: var(--accent); text-decoration: none; font-size: .85rem; margin-left: .5rem;">Skills</a> <a href="/analytics" style="color: var(--accent); text-decoration: none; font-size: .85rem; margin-left: .5rem;">Analytics</a> <a href="/setup" style="color: var(--accent); text-decoration: none; font-size: .85rem; margin-left: .5rem;">Setup</a></p>
+    <div style="display: flex; align-items: center; gap: .75rem;">
+      <span style="font-size: 2.8rem; line-height: 1; cursor: default;" title="I'm watching you build things.">🤨</span>
+      <div>
+        <h1>SUS — Single Use Software</h1>
+        <p>Welcome, {{ identity.display_name }}! What are we building today? <a href="/skills" style="color: var(--accent); text-decoration: none; font-size: .85rem; margin-left: .5rem;">Skills</a> <a href="/analytics" style="color: var(--accent); text-decoration: none; font-size: .85rem; margin-left: .5rem;">Analytics</a> <a href="/setup" style="color: var(--accent); text-decoration: none; font-size: .85rem; margin-left: .5rem;">Setup</a></p>
+      </div>
+    </div>
   </header>
 
   {% if not setup_complete %}
