@@ -75,7 +75,7 @@ class BuildPodManager:
                         ],
                         env=[
                             client.V1EnvVar(name="GIT_BRANCH", value=branch),
-                            client.V1EnvVar(name="GIT_REPO_URL", value=f"https://github.com/sus/{app_slug}.git"),
+                            client.V1EnvVar(name="GIT_REPO_URL", value=os.environ.get("SUS_GIT_REPO_URL", "")),
                             client.V1EnvVar(name="USER_ID", value=user_id),
                             client.V1EnvVar(name="APP_SLUG", value=app_slug),
                             client.V1EnvVar(
