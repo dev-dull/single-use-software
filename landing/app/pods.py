@@ -47,6 +47,9 @@ class BuildPodManager:
         user_id: str,
         app_slug: str,
         branch: str,
+        team: str = "",
+        app_name: str = "",
+        app_description: str = "",
         mcp_config: dict | None = None,
     ) -> client.V1Pod:
         return client.V1Pod(
@@ -78,6 +81,9 @@ class BuildPodManager:
                             client.V1EnvVar(name="GIT_REPO_URL", value=os.environ.get("SUS_GIT_REPO_URL", "")),
                             client.V1EnvVar(name="USER_ID", value=user_id),
                             client.V1EnvVar(name="APP_SLUG", value=app_slug),
+                            client.V1EnvVar(name="APP_TEAM", value=team),
+                            client.V1EnvVar(name="APP_NAME", value=app_name),
+                            client.V1EnvVar(name="APP_DESCRIPTION", value=app_description),
                             client.V1EnvVar(
                                 name="ANTHROPIC_API_KEY",
                                 value_from=client.V1EnvVarSource(
@@ -127,16 +133,19 @@ class BuildPodManager:
         user_id: str,
         app_slug: str,
         branch: str,
+        team: str = "",
+        app_name: str = "",
+        app_description: str = "",
         mcp_config: dict | None = None,
     ) -> str:
-        """Create a build pod and return its name.
-
-        If *mcp_config* is provided it is JSON-encoded and injected into
-        the pod as the ``SUS_MCP_CONFIG`` environment variable.
-        """
+        """Create a build pod and return its name."""
         short = self._short_hash(user_id, app_slug)
         name = f"build-{user_id}-{short}"
-        manifest = self._pod_manifest(name, user_id, app_slug, branch, mcp_config=mcp_config)
+        manifest = self._pod_manifest(
+            name, user_id, app_slug, branch,
+            team=team, app_name=app_name, app_description=app_description,
+            mcp_config=mcp_config,
+        )
         self._core.create_namespaced_pod(namespace=self._namespace, body=manifest)
         return name
 
