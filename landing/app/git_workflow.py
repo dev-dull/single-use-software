@@ -151,34 +151,40 @@ class GitWorkflowManager:
         return {"status": "save_requested", "branch": branch}
 
     def publish(self, user_id: str, team: str, app_slug: str) -> dict:
-        """Signal the build pod that a publish (PR creation) was requested.
+        """Publish the app — register the build pod as the run target.
 
-        The actual PR is created by Claude Code inside the pod.
-
-        Returns status information including the branch name.
+        For the MVP, we skip building a separate container image and instead
+        proxy run-mode traffic to the existing build pod's port 3000.
         """
         session = self._sessions.get(user_id, app_slug)
         if session is None:
             return {"status": "error", "detail": "no active session"}
 
         branch = session["branch"]
-        # TODO: write a marker file / send a signal to the build pod so Claude
-        # Code picks up the publish request.
-        logger.info(
-            "Publish requested for %s/%s on branch %s",
-            user_id,
-            app_slug,
-            branch,
+        pod_name = session["pod_name"]
+
+        # Get the build pod's IP so we can proxy run traffic to it.
+        pod_info = self._pods.get_build_pod(pod_name)
+        pod_ip = pod_info.get("pod_ip") if pod_info else None
+
+        if not pod_ip:
+            return {"status": "error", "detail": "build pod not running"}
+
+        # Register the build pod as the run target.
+        from .published_apps import PublishedAppStore
+        store = PublishedAppStore()
+        store.publish(
+            team=team,
+            app_slug=app_slug,
+            pod_ip=pod_ip,
+            pod_name=pod_name,
+            published_by=user_id,
         )
 
-        # If a publisher is configured, also create/update the run pod.
-        publish_result = None
-        if self._publisher is not None:
-            try:
-                publish_result = self._publisher.publish_app(team=team, app_slug=app_slug)
-                logger.info("Run pod published: %s", publish_result)
-            except Exception:
-                logger.exception("Failed to publish run pod for %s/%s", team, app_slug)
+        logger.info(
+            "Published %s/%s — proxying run to build pod %s (%s)",
+            team, app_slug, pod_name, pod_ip,
+        )
 
         return {
             "status": "publish_requested",

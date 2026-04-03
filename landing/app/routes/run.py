@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from ..proxy import http_proxy
+from ..published_apps import PublishedAppStore
 from ..run_pods import RunPodManager
 
 logger = logging.getLogger(__name__)
@@ -25,14 +26,21 @@ _templates = Jinja2Templates(directory=str(_templates_dir))
 # ---------------------------------------------------------------------------
 
 _run_pod_mgr: Optional[RunPodManager] = None
+_published_store: Optional[PublishedAppStore] = None
 
 
 def _get_run_pod_mgr() -> RunPodManager:
-    """Return the RunPodManager, creating it on first call."""
-    global _run_pod_mgr  # noqa: PLW0603
+    global _run_pod_mgr
     if _run_pod_mgr is None:
         _run_pod_mgr = RunPodManager()
     return _run_pod_mgr
+
+
+def _get_published_store() -> PublishedAppStore:
+    global _published_store
+    if _published_store is None:
+        _published_store = PublishedAppStore()
+    return _published_store
 
 
 # ---------------------------------------------------------------------------
@@ -69,27 +77,42 @@ async def run_proxy(
     app_slug: str,
     path: str,
 ) -> Response:
-    """Proxy HTTP requests to the run pod's app server.
+    """Proxy HTTP requests to the published app.
 
-    Looks up the run pod by team/app labels and forwards traffic to port 3000.
-    Returns 503 if no run pod is available.
+    First checks the published apps store (MVP: proxies to the build pod).
+    Falls back to looking for a dedicated run pod by labels.
+    Returns 503 if no serving endpoint is available.
     """
-    try:
-        mgr = _get_run_pod_mgr()
-        pod_info = mgr.find_run_pod(team, app_slug)
-    except Exception:
-        logger.exception("Failed to look up run pod for %s/%s", team, app_slug)
-        return Response(content="Service Unavailable", status_code=503)
+    pod_ip = None
 
-    if pod_info is None or not pod_info.get("pod_ip"):
+    # Check published apps store first (MVP: build pod as run target).
+    try:
+        store = _get_published_store()
+        published = store.get(team, app_slug)
+        if published:
+            pod_ip = published.get("pod_ip")
+    except Exception:
+        logger.exception("Failed to check published store for %s/%s", team, app_slug)
+
+    # Fall back to dedicated run pod lookup.
+    if not pod_ip:
+        try:
+            mgr = _get_run_pod_mgr()
+            pod_info = mgr.find_run_pod(team, app_slug)
+            if pod_info:
+                pod_ip = pod_info.get("pod_ip")
+        except Exception:
+            logger.exception("Failed to look up run pod for %s/%s", team, app_slug)
+
+    if not pod_ip:
         return Response(
-            content="No run pod available for this application.",
+            content="This app hasn't been published yet. Build it first!",
             status_code=503,
         )
 
     return await http_proxy(
         request,
-        pod_ip=pod_info["pod_ip"],
+        pod_ip=pod_ip,
         pod_port=3000,
         path=f"/{path}" if path else "/",
     )
