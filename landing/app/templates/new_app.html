@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SUS — Create New App</title>
+  <style>
+    :root {
+      --bg: #f5f5f5; --card-bg: #fff; --text: #1a1a1a; --muted: #666;
+      --accent: #2563eb; --accent-hover: #1d4ed8; --border: #e0e0e0; --radius: 8px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.5;
+      display: flex; justify-content: center; padding: 3rem 1rem;
+    }
+    .card {
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 2.5rem; max-width: 480px; width: 100%;
+    }
+    .card h1 { font-size: 1.4rem; margin-bottom: .25rem; }
+    .card .subtitle { color: var(--muted); margin-bottom: 2rem; font-size: .9rem; }
+    .logo { font-size: 2rem; margin-bottom: .5rem; }
+
+    label { display: block; font-weight: 500; margin-bottom: .35rem; font-size: .9rem; }
+    .hint { color: var(--muted); font-size: .8rem; margin-bottom: .5rem; }
+
+    input[type="text"], textarea {
+      width: 100%; padding: .5rem .65rem; border: 1px solid var(--border);
+      border-radius: var(--radius); font-size: .9rem; margin-bottom: 1rem;
+      font-family: inherit;
+    }
+    textarea { min-height: 80px; resize: vertical; }
+    input:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+
+    .btn {
+      padding: .6rem 1.25rem; font-size: .9rem; border-radius: var(--radius);
+      cursor: pointer; border: none; font-weight: 600; background: var(--accent); color: #fff;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    .actions { display: flex; align-items: center; gap: 1rem; }
+    .back { color: var(--muted); text-decoration: none; font-size: .9rem; }
+    .back:hover { color: var(--text); }
+
+    .error { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626;
+      padding: .6rem .75rem; border-radius: var(--radius); margin-bottom: 1rem; font-size: .85rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">🤨</div>
+    <h1>Create New App</h1>
+    <p class="subtitle">Give your app a name and describe what it should do. Claude will build it.</p>
+
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/new" id="new-app-form">
+      <label for="app_name">App Name</label>
+      <p class="hint">A short, friendly name. Example: "Team Lunch Picker"</p>
+      <input type="text" id="app_name" name="app_name" placeholder="My Cool App" required value="{{ app_name or '' }}" />
+
+      <label for="app_description">What should it do?</label>
+      <p class="hint">Describe your app in plain language. Be as specific as you like.</p>
+      <textarea id="app_description" name="app_description" placeholder="A page that picks a random restaurant for team lunch and shows it on a map...">{{ app_description or '' }}</textarea>
+
+      <div class="actions">
+        <button type="submit" class="btn" id="btn-create">Start Building</button>
+        <a href="/" class="back">&larr; Back to catalog</a>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    document.getElementById('new-app-form').addEventListener('submit', function() {
+      const btn = document.getElementById('btn-create');
+      btn.disabled = true;
+      btn.textContent = 'Setting up...';
+    });
+  </script>
+</body>
+</html>

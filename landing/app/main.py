@@ -6,7 +6,7 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
-from fastapi import Depends, FastAPI, Query, Request
+from fastapi import Depends, FastAPI, Form, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
@@ -105,6 +105,45 @@ async def resolve_identity(
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# New app creation
+# ---------------------------------------------------------------------------
+
+@app.get("/new", response_class=HTMLResponse)
+async def new_app_form(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "new_app.html", context={})
+
+
+@app.post("/new", response_model=None)
+async def new_app_create(
+    request: Request,
+    app_name: str = Form(...),
+    app_description: str = Form(""),
+):
+    import re
+    from fastapi.responses import RedirectResponse
+
+    name = app_name.strip()
+    if not name:
+        return templates.TemplateResponse(request, "new_app.html",
+            context={"error": "App name is required.", "app_name": name, "app_description": app_description})
+
+    # Generate a slug from the name.
+    slug = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
+    if not slug:
+        return templates.TemplateResponse(request, "new_app.html",
+            context={"error": "Invalid app name.", "app_name": name, "app_description": app_description})
+
+    # Use "apps" as the team for user-created apps.
+    team = "apps"
+
+    # Redirect to the build page — the build pod will create the app directory.
+    return RedirectResponse(
+        url=f"/build/{team}/{slug}",
+        status_code=303,
+    )
 
 
 @app.get("/healthz", status_code=200)
