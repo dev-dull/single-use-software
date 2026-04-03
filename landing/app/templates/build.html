@@ -282,7 +282,7 @@
         const doc = iframe.contentDocument || iframe.contentWindow.document;
         const text = (doc && doc.body) ? doc.body.innerText : '';
         if (text.includes('Bad Gateway') || text.includes('502') || text.includes('503') ||
-            text.includes('preview will appear')) {
+            text.includes('preview will appear') || text.includes('Loading preview')) {
           _previewRetries++;
           refreshPreview();
         } else if (text.trim().length > 0) {
