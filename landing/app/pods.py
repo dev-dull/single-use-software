@@ -84,6 +84,7 @@ class BuildPodManager:
                             client.V1EnvVar(name="APP_TEAM", value=team),
                             client.V1EnvVar(name="APP_NAME", value=app_name),
                             client.V1EnvVar(name="APP_DESCRIPTION", value=app_description),
+                            client.V1EnvVar(name="SUS_API_URL", value="http://sus-landing.sus.svc.cluster.local"),
                             client.V1EnvVar(
                                 name="ANTHROPIC_API_KEY",
                                 value_from=client.V1EnvVarSource(

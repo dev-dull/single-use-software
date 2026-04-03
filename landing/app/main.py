@@ -25,6 +25,7 @@ from .routes.run import router as run_router
 from .routes.sessions import router as sessions_router
 from .routes.skills import router as skills_router
 from .routes.debug import router as debug_router
+from .routes.secrets import router as secrets_router
 from .routes.setup import router as setup_router
 from .routes.versions import router as versions_router
 from .sessions import SessionStore
@@ -40,6 +41,7 @@ app.include_router(build_router)
 app.include_router(debug_router)
 app.include_router(mcp_router)
 app.include_router(run_router)
+app.include_router(secrets_router)
 app.include_router(sessions_router)
 app.include_router(setup_router)
 app.include_router(skills_router)

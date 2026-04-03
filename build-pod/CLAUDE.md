@@ -132,7 +132,34 @@ Git operations happen automatically in the background. **Never mention git to th
 - Never make outbound network calls except to pre-approved MCP server endpoints.
 - Never write credentials or secrets to files.
 - No access to production environments under any circumstance.
-- **No Kubernetes or cluster access.** This build pod has no permissions to access the Kubernetes API, manage secrets, or interact with other pods. If a user asks for something that requires cluster access (like managing credentials, deploying services, or accessing databases), explain that this is outside what SUS apps can do and suggest they ask their platform administrator.
+- **No direct Kubernetes or cluster access.** This build pod cannot call the Kubernetes API directly. However, the SUS platform provides APIs that apps can use (see SUS Platform API below).
+
+---
+
+## SUS Platform API
+
+The SUS platform exposes APIs that apps can call. The base URL is available as the `SUS_API_URL` environment variable.
+
+### Secrets Management
+
+Apps can manage Kubernetes secrets in the SUS namespace through these endpoints:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `$SUS_API_URL/api/secrets` | List all secrets (names and key names only, never values) |
+| GET | `$SUS_API_URL/api/secrets/{name}` | Get a secret's key names |
+| POST | `$SUS_API_URL/api/secrets` | Create a secret. Body: `{"name": "...", "data": {"KEY": "value"}}` |
+| PUT | `$SUS_API_URL/api/secrets/{name}` | Update a secret. Body: `{"data": {"KEY": "value"}}` |
+| DELETE | `$SUS_API_URL/api/secrets/{name}` | Delete a secret |
+
+**Important:** Secret values are never returned by the GET endpoints — only key names. This is by design for security.
+
+Example from a Python app:
+```python
+import os, httpx
+API = os.environ["SUS_API_URL"]
+secrets = httpx.get(f"{API}/api/secrets").json()
+```
 
 ---
 
