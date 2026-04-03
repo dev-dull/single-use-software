@@ -331,15 +331,33 @@
     async function doPublish() {
       const btn = document.getElementById('btn-publish');
       btn.disabled = true;
+      btn.textContent = 'Publishing...';
       try {
         const resp = await fetch(`${BASE}/publish?pod_ip=${encodeURIComponent(POD_IP)}`, { method: 'POST' });
         const data = await resp.json();
         if (data.status === 'publish_requested') {
           btn.textContent = 'Published!';
-          setTimeout(() => { btn.textContent = 'Publish'; }, 2000);
+          btn.style.background = '#16a34a';
+          // Show success toast
+          const toast = document.createElement('div');
+          toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#16a34a;color:#fff;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+          toast.innerHTML = `Published! <a href="/run/${TEAM}/${APP_SLUG}" style="color:#fff;text-decoration:underline;margin-left:8px;">Run it now &rarr;</a>`;
+          document.body.appendChild(toast);
+          setTimeout(() => {
+            btn.textContent = 'Publish';
+            btn.style.background = '';
+            toast.remove();
+          }, 8000);
+        } else if (data.status === 'error') {
+          btn.textContent = 'Error';
+          btn.style.background = '#dc2626';
+          setTimeout(() => { btn.textContent = 'Publish'; btn.style.background = ''; }, 3000);
         }
       } catch (err) {
         console.error('Publish failed:', err);
+        btn.textContent = 'Error';
+        btn.style.background = '#dc2626';
+        setTimeout(() => { btn.textContent = 'Publish'; btn.style.background = ''; }, 3000);
       } finally {
         btn.disabled = false;
       }
