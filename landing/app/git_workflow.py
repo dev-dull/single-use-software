@@ -189,7 +189,7 @@ class GitWorkflowManager:
         return {
             "status": "publish_requested",
             "branch": branch,
-            "publish": publish_result,
+            "pod_ip": pod_ip,
         }
 
     def end_session(self, user_id: str, team: str, app_slug: str) -> None:
