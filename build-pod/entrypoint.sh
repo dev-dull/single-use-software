@@ -69,5 +69,13 @@ _autosave_loop &
 # --- Start Claude Code CLI via ttyd ---------------------------------------
 # ttyd exposes the Claude Code CLI as a WebSocket terminal on port 8080.
 # The landing page proxies the browser's xterm.js to this WebSocket.
+#
+# Flags:
+#   --dangerously-skip-permissions  — pre-approved sandbox, no permission prompts
+#   --model sonnet                  — pre-select model to skip model-selection banner
+#   DISABLE_AUTOUPDATER=1           — suppress update notices (set in Dockerfile + below)
 
-exec ttyd --port 8080 --writable --base-path / claude --dangerously-skip-permissions
+export DISABLE_AUTOUPDATER=1
+
+exec ttyd --port 8080 --writable --base-path / \
+    claude --dangerously-skip-permissions --model sonnet

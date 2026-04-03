@@ -40,6 +40,15 @@ RUN chmod 444 /repo/claude/skills/*.md
 # Create non-root user for Claude Code (it refuses to run as root)
 RUN useradd -m -s /bin/bash sus && chown -R sus:sus /repo
 
+# Pre-configure Claude Code to suppress welcome screen, model banners, and
+# update notices so users land straight in the session.
+RUN mkdir -p /home/sus/.claude && \
+    echo '{"autoUpdaterStatus":"disabled"}' > /home/sus/.claude/settings.json && \
+    chown -R sus:sus /home/sus/.claude
+
+# Disable the Claude Code auto-updater at the environment level
+ENV DISABLE_AUTOUPDATER=1
+
 WORKDIR /repo
 
 # Copy and set up entrypoint

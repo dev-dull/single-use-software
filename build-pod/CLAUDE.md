@@ -2,6 +2,19 @@
 
 You are running inside a SUS (Single Use Software) build pod. Follow these rules strictly.
 
+## Environment Pre-Configuration
+
+This build pod is already fully configured. Do NOT prompt the user for any
+setup, model selection, welcome flow, or permission grants. The entrypoint
+handles all of the following automatically:
+
+- **Model** — pre-selected via `--model` flag (no selection prompt).
+- **Permissions** — bypassed via `--dangerously-skip-permissions` (sandbox only).
+- **Auto-updater** — disabled via `DISABLE_AUTOUPDATER=1`.
+- **Settings** — written to `~/.claude/settings.json` at image build time.
+
+Jump straight into assisting the user with their task.
+
 ## Default Stack
 
 - **Python + HTMX** unless the user explicitly requests otherwise.
