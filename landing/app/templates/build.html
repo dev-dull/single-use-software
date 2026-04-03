@@ -269,6 +269,32 @@
       }
     }
 
+    // Auto-retry on error: if the initial preview load fails (502/503),
+    // keep retrying every 3s until it succeeds, then stop.
+    // This handles the race where the runner hasn't started yet.
+    let _previewRetries = 0;
+    const _maxRetries = 20;  // Stop after ~60s
+    const _retryTimer = setInterval(() => {
+      if (_previewRetries >= _maxRetries) { clearInterval(_retryTimer); return; }
+      const iframe = document.getElementById('preview-iframe');
+      if (!iframe) return;
+      try {
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        const text = (doc && doc.body) ? doc.body.innerText : '';
+        if (text.includes('Bad Gateway') || text.includes('502') || text.includes('503') ||
+            text.includes('preview will appear')) {
+          _previewRetries++;
+          refreshPreview();
+        } else if (text.trim().length > 0) {
+          // Loaded successfully — stop retrying.
+          clearInterval(_retryTimer);
+        }
+      } catch (e) {
+        // Cross-origin means something loaded — stop.
+        clearInterval(_retryTimer);
+      }
+    }, 3000);
+
     let isPublishing = false;
 
     // Warn if the user tries to leave during publish.
