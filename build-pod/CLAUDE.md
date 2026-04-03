@@ -132,6 +132,7 @@ Git operations happen automatically in the background. **Never mention git to th
 - Never make outbound network calls except to pre-approved MCP server endpoints.
 - Never write credentials or secrets to files.
 - No access to production environments under any circumstance.
+- **No Kubernetes or cluster access.** This build pod has no permissions to access the Kubernetes API, manage secrets, or interact with other pods. If a user asks for something that requires cluster access (like managing credentials, deploying services, or accessing databases), explain that this is outside what SUS apps can do and suggest they ask their platform administrator.
 
 ---
 
