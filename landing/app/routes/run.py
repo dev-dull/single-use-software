@@ -10,6 +10,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 
+from ..pods import BuildPodManager
 from ..proxy import http_proxy
 from ..published_apps import PublishedAppStore
 from ..run_pods import RunPodManager
@@ -85,7 +86,7 @@ async def run_proxy(
     """
     pod_ip = None
 
-    # Check published apps store first (MVP: build pod as run target).
+    # 1. Check published apps store (MVP: build pod as run target).
     try:
         store = _get_published_store()
         published = store.get(team, app_slug)
@@ -94,7 +95,7 @@ async def run_proxy(
     except Exception:
         logger.exception("Failed to check published store for %s/%s", team, app_slug)
 
-    # Fall back to dedicated run pod lookup.
+    # 2. Fall back to dedicated run pod lookup.
     if not pod_ip:
         try:
             mgr = _get_run_pod_mgr()
@@ -103,6 +104,17 @@ async def run_proxy(
                 pod_ip = pod_info.get("pod_ip")
         except Exception:
             logger.exception("Failed to look up run pod for %s/%s", team, app_slug)
+
+    # 3. Fall back to finding a running build pod for this app.
+    if not pod_ip:
+        try:
+            build_mgr = BuildPodManager()
+            for pod in build_mgr.list_build_pods():
+                if pod.get("labels", {}).get("sus.dev/app") == app_slug and pod.get("phase") == "Running":
+                    pod_ip = pod.get("pod_ip")
+                    break
+        except Exception:
+            logger.exception("Failed to find build pod for %s/%s", team, app_slug)
 
     if not pod_ip:
         return Response(
