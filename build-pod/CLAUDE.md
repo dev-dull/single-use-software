@@ -93,7 +93,9 @@ A background runner process watches `/repo` every 5 seconds and automatically st
 - `package.json` → `npm start` (or `node server.js`)
 - `index.html` → `python3 -m http.server 3000`
 
-**You do NOT need to manually start the server.** Just create the application files and the runner will detect them and start serving automatically. Tell the user: *"Check the preview pane on the right — your app should appear in a few seconds."*
+**You do NOT need to manually start the server.** Just create the application files and the runner will detect them and start serving automatically.
+
+After making changes, tell the user: *"I've made the changes — the preview on the right should update automatically in a few seconds. If it doesn't, click the blue **Refresh Preview** button at the top of the preview pane."*
 
 If the stack changes, the runner kills the old server and starts the correct one. If the server crashes, the runner restarts it automatically.
 

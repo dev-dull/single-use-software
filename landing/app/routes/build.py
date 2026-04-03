@@ -239,6 +239,28 @@ async def build_terminal(
 # ---------------------------------------------------------------------------
 
 
+@router.get("/{team}/{app_slug}/preview-hash")
+async def build_preview_hash(
+    team: str,
+    app_slug: str,
+    pod_ip: str = Query("", alias="pod_ip"),
+) -> JSONResponse:
+    """Return a hash of the preview content for change detection."""
+    import hashlib
+    if not pod_ip:
+        return JSONResponse({"hash": ""})
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            resp = await client.get(f"http://{pod_ip}:3000/")
+            if resp.status_code == 200:
+                h = hashlib.md5(resp.content).hexdigest()[:12]
+                return JSONResponse({"hash": h})
+    except Exception:
+        pass
+    return JSONResponse({"hash": ""})
+
+
 @router.get("/{team}/{app_slug}/preview/{path:path}")
 async def build_preview(
     request: Request,
