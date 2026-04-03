@@ -66,6 +66,103 @@ _autosave_loop() {
 
 _autosave_loop &
 
+# --- Runner: auto-start app on port 3000 ---------------------------------
+# Background watcher that detects servable content in /repo and starts the
+# appropriate server process.  Checks every 5 seconds.
+
+SERVER_PID=""
+SERVER_TYPE=""
+
+_kill_server() {
+    if [ -n "$SERVER_PID" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
+        kill "$SERVER_PID" 2>/dev/null || true
+        wait "$SERVER_PID" 2>/dev/null || true
+    fi
+    SERVER_PID=""
+    SERVER_TYPE=""
+}
+
+_start_server() {
+    local new_type="$1"
+
+    # If the stack changed, kill the old server first
+    if [ -n "$SERVER_TYPE" ] && [ "$SERVER_TYPE" != "$new_type" ]; then
+        _kill_server
+    fi
+
+    # Already running with the right type — nothing to do
+    if [ -n "$SERVER_PID" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
+        return
+    fi
+
+    SERVER_TYPE="$new_type"
+
+    case "$new_type" in
+        python)
+            cd /repo
+            pip install -q -r requirements.txt 2>/dev/null || true
+            uvicorn main:app --host 0.0.0.0 --port 3000 --reload &
+            SERVER_PID=$!
+            ;;
+        node)
+            cd /repo
+            npm install --silent 2>/dev/null || true
+            if grep -q '"start"' /repo/package.json 2>/dev/null; then
+                npm start &
+            else
+                node server.js &
+            fi
+            SERVER_PID=$!
+            ;;
+        static)
+            cd /repo
+            python3 -m http.server 3000 &
+            SERVER_PID=$!
+            ;;
+    esac
+}
+
+_runner_loop() {
+    while true; do
+        sleep 5
+
+        # Determine what kind of project exists in /repo
+        detected=""
+        if [ -f /repo/requirements.txt ]; then
+            if grep -qiE 'fastapi|uvicorn' /repo/requirements.txt 2>/dev/null; then
+                detected="python"
+            fi
+        fi
+
+        if [ -z "$detected" ] && [ -f /repo/package.json ]; then
+            detected="node"
+        fi
+
+        if [ -z "$detected" ] && [ -f /repo/index.html ]; then
+            detected="static"
+        fi
+
+        if [ -z "$detected" ]; then
+            continue
+        fi
+
+        # If stack changed, kill old server
+        if [ -n "$SERVER_TYPE" ] && [ "$SERVER_TYPE" != "$detected" ]; then
+            _kill_server
+        fi
+
+        # Restart if the server died
+        if [ -n "$SERVER_PID" ] && ! kill -0 "$SERVER_PID" 2>/dev/null; then
+            SERVER_PID=""
+            SERVER_TYPE=""
+        fi
+
+        _start_server "$detected"
+    done
+}
+
+_runner_loop &
+
 # --- Start Claude Code CLI via ttyd ---------------------------------------
 # ttyd exposes the Claude Code CLI as a WebSocket terminal on port 8080.
 # The landing page proxies the browser's xterm.js to this WebSocket.

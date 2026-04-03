@@ -34,6 +34,23 @@ You manage all git operations. The user never touches git directly.
 | User clicks **Publish** | Open a PR, run auditor, auto-merge to main |
 | Merge conflict on publish | Resolve automatically; notify user in plain English if unresolvable |
 
+## Auto-Runner (port 3000)
+
+A background runner process in the entrypoint watches `/repo` every 5 seconds
+and automatically starts the appropriate server on **port 3000**:
+
+- `requirements.txt` with `fastapi`/`uvicorn` -> `uvicorn main:app` with `--reload`
+- `package.json` -> `npm start` (or `node server.js`)
+- `index.html` -> `python3 -m http.server 3000`
+
+**You do NOT need to manually start the server.** Just create the application
+files (e.g., `main.py`, `requirements.txt`) and the runner will detect them and
+start serving automatically. The preview pane in the browser will pick it up.
+
+If the stack changes (e.g., switching from a static site to FastAPI), the runner
+kills the old server and starts the correct one. If the server crashes, the
+runner restarts it automatically.
+
 ## Sub-Agents
 
 Sub-agent skill definitions are located in `/repo/claude/skills/`. Load them at
