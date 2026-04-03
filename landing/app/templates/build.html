@@ -261,10 +261,10 @@
       }
     }
 
-    // --- Preview auto-refresh ---
-    // Poll the preview endpoint. If it returns the X-SUS-Fallback header,
-    // the build pod's server isn't up yet — keep polling. Once the server
-    // is live, reload the iframe and keep polling for changes.
+    // --- Preview refresh ---
+    // No auto-polling — users click the Refresh button manually.
+    // A background check runs once when the build pod server comes up,
+    // then stops.
     let liveServerDetected = false;
 
     function refreshPreview() {
@@ -274,27 +274,18 @@
       }
     }
 
-    async function checkPreview() {
-      const previewUrl = `${BASE}/preview/?pod_ip=${encodeURIComponent(POD_IP)}`;
+    // Check once every 5s ONLY until the live server is detected, then stop.
+    const _initialPoll = setInterval(async () => {
+      if (liveServerDetected) { clearInterval(_initialPoll); return; }
       try {
-        const resp = await fetch(previewUrl, { method: 'HEAD' });
-        const isFallback = resp.headers.get('X-SUS-Fallback') === 'true';
-        if (!isFallback && !liveServerDetected) {
-          // Build pod server just came up — switch to live preview.
+        const resp = await fetch(`${BASE}/preview/?pod_ip=${encodeURIComponent(POD_IP)}`);
+        if (resp.headers.get('X-SUS-Fallback') !== 'true') {
           liveServerDetected = true;
-          refreshPreview();
-        } else if (!isFallback && liveServerDetected) {
-          // Server is live — refresh periodically to pick up changes.
+          clearInterval(_initialPoll);
           refreshPreview();
         }
-      } catch (e) {
-        // Fetch failed — keep polling.
-      }
-    }
-
-    // Poll every 5 seconds to detect when the build pod server starts
-    // and to pick up changes during development.
-    setInterval(checkPreview, 5000);
+      } catch (e) {}
+    }, 5000);
 
     async function doPublish() {
       const btn = document.getElementById('btn-publish');
