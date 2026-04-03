@@ -81,11 +81,27 @@ class GitWorkflowManager:
         else:
             branch = self._generate_branch(user_id, app_slug)
 
+        # Look up app metadata from the catalog for context.
+        app_name = ""
+        app_description = ""
+        try:
+            from .catalog import scan_apps
+            for app in scan_apps():
+                if app.get("team") == team and app.get("slug") == app_slug:
+                    app_name = app.get("name", "")
+                    app_description = app.get("description", "")
+                    break
+        except Exception:
+            pass
+
         # Create a new pod and persist the session.
         pod_name = self._pods.create_build_pod(
             user_id=user_id,
             app_slug=app_slug,
             branch=branch,
+            team=team,
+            app_name=app_name,
+            app_description=app_description,
         )
         self._sessions.upsert(
             user_id=user_id,
