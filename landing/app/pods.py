@@ -68,6 +68,7 @@ class BuildPodManager:
                     client.V1Container(
                         name="build",
                         image=self._image,
+                        image_pull_policy=os.environ.get("SUS_BUILD_IMAGE_PULL_POLICY", "Always"),
                         ports=[
                             client.V1ContainerPort(container_port=8080, name="terminal"),
                             client.V1ContainerPort(container_port=3000, name="preview"),

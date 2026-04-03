@@ -34,7 +34,7 @@ buildPod:
   image:
     repository: sus-registry:5050/sus-build
     tag: dev
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
   ports:
     terminal: 8080
     preview: 3000
