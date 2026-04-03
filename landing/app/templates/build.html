@@ -262,9 +262,10 @@
     }
 
     // --- Preview auto-refresh ---
-    // Periodically reload the preview iframe until it loads successfully.
-    let previewLoaded = false;
-    let previewTimer = null;
+    // Poll the preview endpoint. If it returns the X-SUS-Fallback header,
+    // the build pod's server isn't up yet — keep polling. Once the server
+    // is live, reload the iframe and keep polling for changes.
+    let liveServerDetected = false;
 
     function refreshPreview() {
       const iframe = document.getElementById('preview-iframe');
@@ -273,60 +274,27 @@
       }
     }
 
-    function checkPreview() {
-      const iframe = document.getElementById('preview-iframe');
-      if (!iframe) return;
-
+    async function checkPreview() {
+      const previewUrl = `${BASE}/preview/?pod_ip=${encodeURIComponent(POD_IP)}`;
       try {
-        // Try to access iframe content — if cross-origin, this throws.
-        // A successful load with actual content means the app is up.
-        const doc = iframe.contentDocument || iframe.contentWindow.document;
-        const body = doc && doc.body;
-        if (body) {
-          const text = body.innerText || '';
-          // Check for common error indicators
-          if (text.includes('Bad Gateway') ||
-              text.includes('502') ||
-              text.includes('503') ||
-              text.includes('Connection refused')) {
-            // Still erroring — reload
-            refreshPreview();
-          } else if (text.trim().length > 0) {
-            // Content loaded successfully — stop polling
-            previewLoaded = true;
-            if (previewTimer) {
-              clearInterval(previewTimer);
-              previewTimer = null;
-            }
-          }
+        const resp = await fetch(previewUrl, { method: 'HEAD' });
+        const isFallback = resp.headers.get('X-SUS-Fallback') === 'true';
+        if (!isFallback && !liveServerDetected) {
+          // Build pod server just came up — switch to live preview.
+          liveServerDetected = true;
+          refreshPreview();
+        } else if (!isFallback && liveServerDetected) {
+          // Server is live — refresh periodically to pick up changes.
+          refreshPreview();
         }
       } catch (e) {
-        // Cross-origin: we can't inspect content, but the iframe loaded
-        // something. If it were a gateway error from our own proxy it would
-        // be same-origin, so a cross-origin load likely means success.
-        previewLoaded = true;
-        if (previewTimer) {
-          clearInterval(previewTimer);
-          previewTimer = null;
-        }
+        // Fetch failed — keep polling.
       }
     }
 
-    // Start polling every 5 seconds
-    previewTimer = setInterval(() => {
-      if (!previewLoaded) {
-        checkPreview();
-      }
-    }, 5000);
-
-    // Also check once after initial load
-    const previewIframe = document.getElementById('preview-iframe');
-    if (previewIframe) {
-      previewIframe.addEventListener('load', () => {
-        // Small delay to let content render
-        setTimeout(checkPreview, 500);
-      });
-    }
+    // Poll every 5 seconds to detect when the build pod server starts
+    // and to pick up changes during development.
+    setInterval(checkPreview, 5000);
 
     async function doPublish() {
       const btn = document.getElementById('btn-publish');

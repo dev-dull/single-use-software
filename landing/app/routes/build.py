@@ -250,26 +250,32 @@ async def build_preview(
     """Proxy HTTP requests to the build pod's app preview server.
 
     Falls back to serving static files from the baked-in apps directory
-    so the preview shows the current app version even before a server starts.
+    so the preview shows the current app version before a server starts.
+    Once the build pod's server is running, it always takes priority.
     """
-    # Try the build pod first.
+    import os
+    from pathlib import Path
+    from fastapi.responses import FileResponse
+
+    # Try the build pod's live server first — this is the app being developed.
     if pod_ip:
         try:
             resp = await http_proxy(request, pod_ip=pod_ip, pod_port=3000, path=f"/{path}")
+            # 502 means the server isn't up yet — fall through to static.
+            # Any other response (200, 404, 500) means the server IS running.
             if resp.status_code != 502:
                 return resp
         except Exception:
             pass
 
-    # Fall back to static files from the apps directory.
-    import os
-    from pathlib import Path
-    from fastapi.responses import FileResponse
-
+    # Fall back to static files from the baked-in apps directory.
     apps_root = Path(os.environ.get("SUS_APPS_ROOT", "/repo/apps"))
     serve_path = path.strip("/") if path.strip("/") else "index.html"
     static_file = apps_root / team / app_slug / serve_path
     if static_file.is_file():
-        return FileResponse(static_file)
+        # Serve with a header so the auto-refresh JS knows this is a fallback.
+        resp = FileResponse(static_file)
+        resp.headers["X-SUS-Fallback"] = "true"
+        return resp
 
     return Response(content="No preview available yet.", status_code=503)
