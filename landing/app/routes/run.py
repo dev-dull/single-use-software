@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Request
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from ..pods import BuildPodManager
@@ -116,19 +115,6 @@ async def run_proxy(
                     break
         except Exception:
             logger.exception("Failed to find build pod for %s/%s", team, app_slug)
-
-    # 4. Fall back to serving static files from the baked-in apps directory.
-    if not pod_ip:
-        apps_root = Path(os.environ.get("SUS_APPS_ROOT", "/repo/apps"))
-        app_dir = apps_root / team / app_slug
-        serve_path = path.strip("/") if path.strip("/") else "index.html"
-        static_file = app_dir / serve_path
-        if static_file.is_file():
-            resp = FileResponse(static_file)
-            resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-            resp.headers["Pragma"] = "no-cache"
-            resp.headers["Expires"] = "0"
-            return resp
 
     if not pod_ip:
         return Response(

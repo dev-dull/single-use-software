@@ -262,30 +262,12 @@
     }
 
     // --- Preview refresh ---
-    // No auto-polling — users click the Refresh button manually.
-    // A background check runs once when the build pod server comes up,
-    // then stops.
-    let liveServerDetected = false;
-
     function refreshPreview() {
       const iframe = document.getElementById('preview-iframe');
       if (iframe) {
         iframe.src = iframe.src;
       }
     }
-
-    // Check once every 5s ONLY until the live server is detected, then stop.
-    const _initialPoll = setInterval(async () => {
-      if (liveServerDetected) { clearInterval(_initialPoll); return; }
-      try {
-        const resp = await fetch(`${BASE}/preview/?pod_ip=${encodeURIComponent(POD_IP)}`);
-        if (resp.headers.get('X-SUS-Fallback') !== 'true') {
-          liveServerDetected = true;
-          clearInterval(_initialPoll);
-          refreshPreview();
-        }
-      } catch (e) {}
-    }, 5000);
 
     let isPublishing = false;
 

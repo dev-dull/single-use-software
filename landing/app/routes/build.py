@@ -247,41 +247,11 @@ async def build_preview(
     path: str,
     pod_ip: str = Query("", alias="pod_ip"),
 ) -> Response:
-    """Proxy HTTP requests to the build pod's app preview server.
-
-    Falls back to serving static files from the baked-in apps directory
-    so the preview shows the current app version before a server starts.
-    Once the build pod's server is running, it always takes priority.
-    """
-    import os
-    from pathlib import Path
-    from fastapi.responses import FileResponse
-
-    # Try the build pod's live server first — this is the app being developed.
+    """Proxy HTTP requests to the build pod's app preview server."""
     if pod_ip:
-        try:
-            resp = await http_proxy(request, pod_ip=pod_ip, pod_port=3000, path=f"/{path}")
-            # 502 means the server isn't up yet — fall through to static.
-            # Any other response (200, 404, 500) means the server IS running.
-            if resp.status_code != 502:
-                return resp
-        except Exception:
-            pass
-
-    # Fall back to static files from the baked-in apps directory.
-    apps_root = Path(os.environ.get("SUS_APPS_ROOT", "/repo/apps"))
-    serve_path = path.strip("/") if path.strip("/") else "index.html"
-    static_file = apps_root / team / app_slug / serve_path
-    if static_file.is_file():
-        # Serve with a header so the auto-refresh JS knows this is a fallback.
-        resp = FileResponse(static_file)
-        resp.headers["X-SUS-Fallback"] = "true"
-        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-        resp.headers["Pragma"] = "no-cache"
-        resp.headers["Expires"] = "0"
-        return resp
+        return await http_proxy(request, pod_ip=pod_ip, pod_port=3000, path=f"/{path}")
 
     return Response(
-        content="No preview available yet.", status_code=503,
-        headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"},
+        content="The app preview will appear here once you start building.",
+        status_code=503,
     )

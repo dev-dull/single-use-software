@@ -37,9 +37,6 @@ RUN chmod 444 /repo/claude/CLAUDE.md
 COPY build-pod/claude/skills/ /repo/claude/skills/
 RUN chmod 444 /repo/claude/skills/*.md
 
-# Copy app catalog so existing apps can be loaded into build sessions
-COPY apps/ /repo/apps/
-
 # Create non-root user for Claude Code (it refuses to run as root)
 RUN useradd -m -s /bin/bash sus && chown -R sus:sus /repo
 ENV PATH="/home/sus/.local/bin:${PATH}"
