@@ -190,9 +190,31 @@ async def build_ws(
     await ws_proxy(websocket, pod_ip=pod_ip, pod_port=8080)
 
 
+@router.websocket("/{team}/{app_slug}/terminal/ws")
+async def build_terminal_ws(
+    websocket: WebSocket,
+    team: str,
+    app_slug: str,
+    pod_ip: str = Query(..., alias="pod_ip"),
+) -> None:
+    """Proxy ttyd WebSocket (ttyd JS connects to basePath/ws)."""
+    await ws_proxy(websocket, pod_ip=pod_ip, pod_port=8080)
+
+
 # ---------------------------------------------------------------------------
-# Terminal proxy — ttyd HTTP assets
+# Terminal proxy — ttyd HTTP assets and API
 # ---------------------------------------------------------------------------
+
+
+@router.get("/{team}/{app_slug}/terminal/token")
+async def build_terminal_token(
+    request: Request,
+    team: str,
+    app_slug: str,
+    pod_ip: str = Query(..., alias="pod_ip"),
+) -> Response:
+    """Proxy ttyd token endpoint."""
+    return await http_proxy(request, pod_ip=pod_ip, pod_port=8080, path="/token")
 
 
 @router.get("/{team}/{app_slug}/terminal/{path:path}")
