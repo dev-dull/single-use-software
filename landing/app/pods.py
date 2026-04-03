@@ -94,6 +94,16 @@ class BuildPodManager:
                                     ),
                                 ),
                             ),
+                            client.V1EnvVar(
+                                name="GIT_TOKEN",
+                                value_from=client.V1EnvVarSource(
+                                    secret_key_ref=client.V1SecretKeySelector(
+                                        name="sus-git-token",
+                                        key="GIT_TOKEN",
+                                        optional=True,
+                                    ),
+                                ),
+                            ),
                         ]
                         + (
                             [client.V1EnvVar(name="SUS_MCP_CONFIG", value=json.dumps(mcp_config))]

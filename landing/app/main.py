@@ -168,11 +168,12 @@ async def index(
     )
     available_tags = all_tags()
 
-    # Check if API key is configured for the setup banner.
-    api_key_configured = False
+    # Check setup status for the banner.
+    setup_complete = False
     try:
         from .api_key import APIKeyManager
-        api_key_configured = APIKeyManager().is_configured()
+        from .git_token import GitTokenManager
+        setup_complete = APIKeyManager().is_configured() and GitTokenManager().is_configured()
     except Exception:
         pass
 
@@ -185,6 +186,6 @@ async def index(
             "available_tags": available_tags,
             "active_tags": tags or [],
             "query": q or "",
-            "api_key_configured": api_key_configured,
+            "setup_complete": setup_complete,
         },
     )
