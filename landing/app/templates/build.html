@@ -5,11 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Build: {{ team }}/{{ app_slug }}</title>
 
-  <!-- xterm.js -->
-  <link rel="stylesheet" href="https://unpkg.com/@xterm/xterm@5.5.0/css/xterm.css" />
-  <script src="https://unpkg.com/@xterm/xterm@5.5.0/lib/xterm.js"></script>
-  <script src="https://unpkg.com/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
-
   <style>
     :root {
       --bg-primary: #0d1117;
@@ -37,7 +32,6 @@
       color: var(--text-primary);
     }
 
-    /* --- Header --- */
     .header {
       display: flex;
       align-items: center;
@@ -48,11 +42,7 @@
       border-bottom: 1px solid var(--border-color);
     }
 
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
+    .header-left { display: flex; align-items: center; gap: 16px; }
 
     .header-left a {
       color: var(--text-secondary);
@@ -61,21 +51,11 @@
       transition: color 0.15s;
     }
 
-    .header-left a:hover {
-      color: var(--accent);
-    }
+    .header-left a:hover { color: var(--accent); }
 
-    .app-name {
-      font-weight: 600;
-      font-size: 15px;
-      color: var(--text-primary);
-    }
+    .app-name { font-weight: 600; font-size: 15px; color: var(--text-primary); }
 
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+    .header-right { display: flex; align-items: center; gap: 8px; }
 
     .btn {
       padding: 6px 16px;
@@ -88,26 +68,12 @@
       color: #fff;
     }
 
-    .btn-save {
-      background: var(--btn-save);
-    }
-    .btn-save:hover {
-      background: var(--btn-save-hover);
-    }
+    .btn-save { background: var(--btn-save); }
+    .btn-save:hover { background: var(--btn-save-hover); }
+    .btn-publish { background: var(--btn-publish); }
+    .btn-publish:hover { background: var(--btn-publish-hover); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    .btn-publish {
-      background: var(--btn-publish);
-    }
-    .btn-publish:hover {
-      background: var(--btn-publish-hover);
-    }
-
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    /* --- Panes --- */
     .panes {
       display: flex;
       height: calc(100vh - 48px);
@@ -132,10 +98,10 @@
       user-select: none;
     }
 
-    #terminal-container {
+    .terminal-iframe {
       flex: 1;
-      padding: 4px;
-      overflow: hidden;
+      border: none;
+      background: #000;
     }
 
     .divider {
@@ -146,10 +112,7 @@
       user-select: none;
     }
 
-    .divider:hover,
-    .divider.active {
-      background: var(--accent);
-    }
+    .divider:hover, .divider.active { background: var(--accent); }
 
     .preview-pane {
       flex: 1;
@@ -173,11 +136,16 @@
       border: none;
       background: #fff;
     }
+
+    .status-msg {
+      padding: 2rem;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
 
-  <!-- Header -->
   <div class="header">
     <div class="header-left">
       <a href="/">&larr; Catalog</a>
@@ -189,95 +157,31 @@
     </div>
   </div>
 
-  <!-- Split panes -->
   <div class="panes">
     <div class="terminal-pane" id="terminal-pane">
       <div class="terminal-pane-header">Terminal</div>
-      <div id="terminal-container"></div>
+      {% if pod_ip %}
+      <iframe class="terminal-iframe"
+              src="/build/{{ team }}/{{ app_slug }}/terminal/?pod_ip={{ pod_ip }}"></iframe>
+      {% else %}
+      <div class="status-msg">Waiting for build pod to start...</div>
+      {% endif %}
     </div>
     <div class="divider" id="divider"></div>
     <div class="preview-pane" id="preview-pane">
       <div class="preview-pane-header">Preview</div>
       <iframe id="preview-iframe"
-              src="/build/{{ team }}/{{ app_slug }}/preview/?pod_ip={{ pod_ip }}">
-      </iframe>
+              src="/build/{{ team }}/{{ app_slug }}/preview/?pod_ip={{ pod_ip }}"></iframe>
     </div>
   </div>
 
   <script>
-    // -----------------------------------------------------------------------
-    // Config
-    // -----------------------------------------------------------------------
     const TEAM = "{{ team }}";
     const APP_SLUG = "{{ app_slug }}";
     const POD_IP = "{{ pod_ip }}";
     const BASE = `/build/${TEAM}/${APP_SLUG}`;
 
-    // -----------------------------------------------------------------------
-    // Terminal setup
-    // -----------------------------------------------------------------------
-    const term = new Terminal({
-      cursorBlink: true,
-      fontSize: 14,
-      fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
-      theme: {
-        background: '#161b22',
-        foreground: '#e6edf3',
-        cursor: '#58a6ff',
-        selectionBackground: '#264f78',
-      },
-    });
-    const fitAddon = new FitAddon.FitAddon();
-    term.loadAddon(fitAddon);
-    term.open(document.getElementById('terminal-container'));
-    fitAddon.fit();
-
-    // WebSocket connection
-    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${location.host}${BASE}/ws?pod_ip=${encodeURIComponent(POD_IP)}`;
-    let ws = null;
-
-    function connectWs() {
-      ws = new WebSocket(wsUrl);
-      ws.binaryType = 'arraybuffer';
-
-      ws.onopen = () => {
-        term.writeln('\x1b[32mConnected to build pod.\x1b[0m');
-      };
-
-      ws.onmessage = (event) => {
-        if (event.data instanceof ArrayBuffer) {
-          term.write(new Uint8Array(event.data));
-        } else {
-          term.write(event.data);
-        }
-      };
-
-      ws.onclose = () => {
-        term.writeln('\r\n\x1b[31mConnection closed.\x1b[0m');
-      };
-
-      ws.onerror = () => {
-        term.writeln('\r\n\x1b[31mWebSocket error.\x1b[0m');
-      };
-    }
-
-    term.onData((data) => {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(data);
-      }
-    });
-
-    connectWs();
-
-    // -----------------------------------------------------------------------
-    // Resize handling
-    // -----------------------------------------------------------------------
-    window.addEventListener('resize', () => fitAddon.fit());
-
-    // -----------------------------------------------------------------------
-    // Resizable divider
-    // -----------------------------------------------------------------------
+    // --- Resizable divider ---
     const divider = document.getElementById('divider');
     const terminalPane = document.getElementById('terminal-pane');
     const panes = document.querySelector('.panes');
@@ -294,11 +198,8 @@
     document.addEventListener('mousemove', (e) => {
       if (!isDragging) return;
       const rect = panes.getBoundingClientRect();
-      const offset = e.clientX - rect.left;
-      const total = rect.width;
-      const pct = Math.min(Math.max((offset / total) * 100, 15), 85);
+      const pct = Math.min(Math.max(((e.clientX - rect.left) / rect.width) * 100, 15), 85);
       terminalPane.style.flex = `0 0 ${pct}%`;
-      fitAddon.fit();
     });
 
     document.addEventListener('mouseup', () => {
@@ -307,30 +208,23 @@
       divider.classList.remove('active');
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
-      fitAddon.fit();
     });
 
-    // -----------------------------------------------------------------------
-    // Heartbeat
-    // -----------------------------------------------------------------------
+    // --- Heartbeat ---
     setInterval(() => {
       fetch(`${BASE}/heartbeat?pod_ip=${encodeURIComponent(POD_IP)}`, {
         method: 'POST',
       }).catch(() => {});
     }, 30000);
 
-    // -----------------------------------------------------------------------
-    // Save / Publish
-    // -----------------------------------------------------------------------
+    // --- Save / Publish ---
     async function doSave() {
       const btn = document.getElementById('btn-save');
       btn.disabled = true;
       try {
-        const resp = await fetch(`${BASE}/save?pod_ip=${encodeURIComponent(POD_IP)}`, {
-          method: 'POST',
-        });
+        const resp = await fetch(`${BASE}/save?pod_ip=${encodeURIComponent(POD_IP)}`, { method: 'POST' });
         const data = await resp.json();
-        if (data.status === 'saved') {
+        if (data.status === 'save_requested') {
           btn.textContent = 'Saved!';
           setTimeout(() => { btn.textContent = 'Save'; }, 2000);
         }
@@ -345,11 +239,9 @@
       const btn = document.getElementById('btn-publish');
       btn.disabled = true;
       try {
-        const resp = await fetch(`${BASE}/publish?pod_ip=${encodeURIComponent(POD_IP)}`, {
-          method: 'POST',
-        });
+        const resp = await fetch(`${BASE}/publish?pod_ip=${encodeURIComponent(POD_IP)}`, { method: 'POST' });
         const data = await resp.json();
-        if (data.status === 'published') {
+        if (data.status === 'publish_requested') {
           btn.textContent = 'Published!';
           setTimeout(() => { btn.textContent = 'Publish'; }, 2000);
         }

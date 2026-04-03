@@ -22,20 +22,32 @@ git config --global --add safe.directory /repo
 
 # --- Clone or checkout ----------------------------------------------------
 
-if [ -n "${GIT_REPO_URL:-}" ]; then
+cd /repo
+
+if [ -n "${GIT_REPO_URL:-}" ] && [ "${GIT_REPO_URL}" != "https://github.com/sus/"* ]; then
+    # A real repo URL was provided — clone if not already cloned.
     if [ ! -d "/repo/.git" ]; then
-        git clone "${GIT_REPO_URL}" /repo
+        git clone "${GIT_REPO_URL}" /tmp/repo-clone
+        cp -a /tmp/repo-clone/. /repo/
+        rm -rf /tmp/repo-clone
     fi
 
     if [ -n "${GIT_BRANCH:-}" ]; then
-        cd /repo
-        # Fetch latest and check out the requested branch
-        git fetch --all
+        git fetch --all 2>/dev/null || true
+        git checkout "${GIT_BRANCH}" 2>/dev/null || git checkout -b "${GIT_BRANCH}"
+    fi
+else
+    # No valid repo URL — initialize a local git repo for autosave.
+    if [ ! -d "/repo/.git" ]; then
+        git init
+        git add -A
+        git commit -m "chore: initial scaffold" --allow-empty 2>/dev/null || true
+    fi
+
+    if [ -n "${GIT_BRANCH:-}" ]; then
         git checkout "${GIT_BRANCH}" 2>/dev/null || git checkout -b "${GIT_BRANCH}"
     fi
 fi
-
-cd /repo
 
 # --- Auto-commit loop -----------------------------------------------------
 # Runs in the background every 5 minutes.  If there are uncommitted changes
@@ -54,8 +66,8 @@ _autosave_loop() {
 
 _autosave_loop &
 
-# --- Start Claude Code CLI ------------------------------------------------
-# Launch Claude Code in WebSocket mode so the landing page can proxy a
-# terminal session from the browser.
+# --- Start Claude Code CLI via ttyd ---------------------------------------
+# ttyd exposes the Claude Code CLI as a WebSocket terminal on port 8080.
+# The landing page proxies the browser's xterm.js to this WebSocket.
 
-exec claude --dangerously-skip-permissions
+exec ttyd --port 8080 --writable --base-path / claude --dangerously-skip-permissions

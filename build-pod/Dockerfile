@@ -19,6 +19,13 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 # Install Claude Code CLI globally
 RUN npm install -g @anthropic-ai/claude-code
 
+# Install ttyd — terminal-to-WebSocket bridge
+# Determine arch for download: aarch64 or x86_64
+RUN ARCH=$(uname -m) && \
+    curl -fsSL -o /usr/local/bin/ttyd \
+    "https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.${ARCH}" && \
+    chmod +x /usr/local/bin/ttyd
+
 # Create working directory
 RUN mkdir -p /repo/claude/skills
 
@@ -37,7 +44,7 @@ COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Expose ports:
-#   8080 — Claude Code terminal (WebSocket)
+#   8080 — Claude Code terminal (ttyd WebSocket)
 #   3000 — App preview
 EXPOSE 8080 3000
 

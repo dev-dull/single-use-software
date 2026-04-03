@@ -165,6 +165,11 @@ async def build_stop(
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Terminal proxy — ttyd WebSocket
+# ---------------------------------------------------------------------------
+
+
 @router.websocket("/{team}/{app_slug}/ws")
 async def build_ws(
     websocket: WebSocket,
@@ -172,12 +177,30 @@ async def build_ws(
     app_slug: str,
     pod_ip: str = Query(..., alias="pod_ip"),
 ) -> None:
-    """Proxy WebSocket traffic to the build pod's Claude Code terminal.
-
-    The *pod_ip* query parameter is required for now; real pod lookup will be
-    wired in once the pod lifecycle manager (issue #4) is integrated.
-    """
+    """Proxy WebSocket traffic to ttyd running in the build pod."""
     await ws_proxy(websocket, pod_ip=pod_ip, pod_port=8080)
+
+
+# ---------------------------------------------------------------------------
+# Terminal proxy — ttyd HTTP assets
+# ---------------------------------------------------------------------------
+
+
+@router.get("/{team}/{app_slug}/terminal/{path:path}")
+async def build_terminal(
+    request: Request,
+    team: str,
+    app_slug: str,
+    path: str,
+    pod_ip: str = Query(..., alias="pod_ip"),
+) -> Response:
+    """Proxy HTTP requests to ttyd's web UI (HTML, JS, CSS assets)."""
+    return await http_proxy(
+        request,
+        pod_ip=pod_ip,
+        pod_port=8080,
+        path=f"/{path}" if path else "/",
+    )
 
 
 # ---------------------------------------------------------------------------
