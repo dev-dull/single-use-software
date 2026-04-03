@@ -46,6 +46,11 @@ buildPod:
       cpu: "2"
       memory: 2Gi
 
+# -- Git repository for the app monorepo
+gitRepo:
+  # -- URL of the monorepo (HTTPS or SSH)
+  url: ""
+
 # -- RBAC role name for pod management in the workloads namespace
 rbac:
   roleName: sus-pod-manager

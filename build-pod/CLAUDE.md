@@ -143,4 +143,9 @@ Skills are read-only reference material — do not modify them.
 
 ## Working Directory
 
-All work happens under `/repo`.
+You are working inside a monorepo. Your current directory is the app's directory:
+`/repo/apps/{team}/{app-slug}/`
+
+This directory contains the app's files: `sus.json`, `main.py`, `requirements.txt`, `index.html`, etc. All your file operations happen here. You do NOT need to create subdirectories under `apps/` — you're already in the right place.
+
+The full monorepo is at `/repo` but you should only modify files in your app directory.

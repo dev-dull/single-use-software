@@ -41,7 +41,8 @@ def scan_apps(
     """
 
     if root is None:
-        root = os.environ.get("SUS_APPS_ROOT", "/repo/apps")
+        from .repo_sync import get_apps_root
+        root = os.environ.get("SUS_APPS_ROOT", str(get_apps_root()))
 
     root = Path(root)
     apps: list[dict[str, Any]] = []

@@ -4,6 +4,7 @@ CLUSTER_REGISTRY := sus-registry:5050
 LANDING_IMAGE := $(REGISTRY)/sus-landing
 BUILD_POD_IMAGE := $(REGISTRY)/sus-build
 TAG := dev
+GIT_REPO_URL ?= https://github.com/dev-dull/single-use-software.git
 
 .PHONY: help cluster-up cluster-down build push build-pod push-pod deploy upgrade dev teardown status logs
 
@@ -42,12 +43,14 @@ push-pod: ## Push the build pod image to the local registry
 deploy: ## Install the Helm chart into the cluster
 	helm install sus ./charts/sus \
 		--set landing.image.repository=$(CLUSTER_REGISTRY)/sus-landing \
-		--set landing.image.tag=$(TAG)
+		--set landing.image.tag=$(TAG) \
+		--set gitRepo.url=$(GIT_REPO_URL)
 
 upgrade: ## Upgrade the Helm release with latest values
 	helm upgrade sus ./charts/sus \
 		--set landing.image.repository=$(CLUSTER_REGISTRY)/sus-landing \
-		--set landing.image.tag=$(TAG)
+		--set landing.image.tag=$(TAG) \
+		--set gitRepo.url=$(GIT_REPO_URL)
 
 # --- Compound targets ---
 
