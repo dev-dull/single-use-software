@@ -171,6 +171,7 @@ class GitWorkflowManager:
             return {"status": "error", "detail": "build pod not running"}
 
         # Commit and push changes from the build pod to the app repo.
+        commit_hash = "unknown"
         try:
             # Stage and commit all changes.
             self._pods.exec_in_pod(pod_name, [
@@ -180,8 +181,15 @@ class GitWorkflowManager:
                 "git commit -m 'publish: update ${APP_TEAM}/${APP_SLUG}'"
             ])
 
+            # Get the commit hash.
+            try:
+                commit_hash = self._pods.exec_in_pod(pod_name, [
+                    "bash", "-c", "cd /repo && git rev-parse --short HEAD"
+                ]).strip()
+            except Exception:
+                pass
+
             # Push to main (merge the branch).
-            # First checkout main, merge the branch, push, then switch back.
             self._pods.exec_in_pod(pod_name, [
                 "bash", "-c",
                 "cd /repo && "
@@ -205,6 +213,22 @@ class GitWorkflowManager:
             published_by=user_id,
         )
 
+        # Record version history.
+        try:
+            from .versions import VersionTracker
+            tracker = VersionTracker()
+            version_number = tracker.record_version(
+                team=team,
+                app_slug=app_slug,
+                commit_hash=commit_hash,
+                published_by=user_id,
+                image_tag=f"build-pod:{pod_name}",
+                message=f"Published from build session",
+            )
+            logger.info("Recorded version %d for %s/%s", version_number, team, app_slug)
+        except Exception:
+            logger.exception("Failed to record version for %s/%s", team, app_slug)
+
         # Trigger a repo sync so the landing page picks up the changes.
         try:
             from .repo_sync import clone_or_pull
@@ -221,6 +245,7 @@ class GitWorkflowManager:
             "status": "publish_requested",
             "branch": branch,
             "pod_ip": pod_ip,
+            "commit": commit_hash,
         }
 
     def end_session(self, user_id: str, team: str, app_slug: str) -> None:
