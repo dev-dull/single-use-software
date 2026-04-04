@@ -127,28 +127,35 @@ class GitWorkflowManager:
         app_slug: str,
         message: str | None = None,
     ) -> dict:
-        """Signal the build pod that a save (named commit) was requested.
-
-        The actual ``git add / git commit`` is performed by Claude Code inside
-        the pod, which watches for the marker file written here.
-
-        Returns status information including the branch name.
-        """
+        """Commit and push the working branch so work survives pod restarts."""
         session = self._sessions.get(user_id, app_slug)
         if session is None:
             return {"status": "error", "detail": "no active session"}
 
         branch = session["branch"]
-        # TODO: write a marker file / send a signal to the build pod so Claude
-        # Code picks up the save request with the optional commit message.
-        logger.info(
-            "Save requested for %s/%s on branch %s (message=%s)",
-            user_id,
-            app_slug,
-            branch,
-            message,
-        )
-        return {"status": "save_requested", "branch": branch}
+        pod_name = session["pod_name"]
+        commit_msg = message or "save: work in progress"
+
+        try:
+            # Commit any uncommitted changes.
+            self._pods.exec_in_pod(pod_name, [
+                "bash", "-c",
+                f"cd /repo && git add -A && "
+                f"git diff --cached --quiet || "
+                f"git commit -m '{commit_msg}'"
+            ])
+
+            # Push the working branch to the remote.
+            self._pods.exec_in_pod(pod_name, [
+                "bash", "-c",
+                "cd /repo && git push origin ${GIT_BRANCH} 2>&1 || true"
+            ])
+
+            logger.info("Saved %s/%s — pushed branch %s", team, app_slug, branch)
+            return {"status": "saved", "branch": branch}
+        except Exception:
+            logger.exception("Save failed for %s/%s", team, app_slug)
+            return {"status": "error", "detail": "failed to save"}
 
     def publish(self, user_id: str, team: str, app_slug: str) -> dict:
         """Publish the app — register the build pod as the run target.

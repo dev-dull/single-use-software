@@ -96,6 +96,10 @@ _autosave_loop() {
             git add -A
             git commit -m "chore: autosave" --no-verify 2>/dev/null || true
         fi
+        # Push the working branch so work survives pod restarts.
+        if [ -n "${GIT_BRANCH:-}" ] && git remote get-url origin >/dev/null 2>&1; then
+            git push origin "${GIT_BRANCH}" 2>/dev/null || true
+        fi
     done
 }
 
