@@ -96,14 +96,18 @@ The pod runs Claude Code CLI as the primary process. The landing page proxies a 
 
 The UI is a split pane:
 
-* **Left**: Claude Code terminal (xterm.js)  
-* **Right**: Live preview of the app (iframe proxied from the pod's secondary port)
+* **Left**: Claude Code terminal (served via ttyd as a WebSocket terminal)
+* **Right**: Live preview of the app (iframe proxied from the pod's port 3000, auto-refreshes on content change)
 
 This approach preserves all of Claude Code's capabilities (agentic loops, file editing, MCP tool use, sub-agents) without reimplementing them.
 
-### **Run Pods (run mode)**
+### **Run Mode**
 
-When an app is published, a container image is built from the app's directory in the monorepo and registered in the catalog. In run mode, the landing page pod creates a run pod from that image in the `sus-workloads` namespace and proxies user traffic to it. Run pods are read-only — no Claude session, no editing.
+When an app is published, the build pod's changes are committed and pushed to the app repo's main branch. Run mode serves published apps by:
+
+1. Proxying to the build pod (if still running) — for immediate access after publish
+2. Serving static files from the app repo clone — for apps that don't need a server
+3. The landing page periodically pulls the app repo to stay in sync
 
 ---
 
@@ -117,7 +121,7 @@ SUS uses two separate repositories:
 The app repo layout:
 
 ```
-{team}/
+{category}/
   {app-slug}/
     sus.json             # app metadata (see below)
     main.py              # entry point (Python + HTMX by default)
@@ -125,6 +129,8 @@ The app repo layout:
     index.html           # or static site
     ...
 ```
+
+Categories are chosen when creating a new app and organize the catalog. Users can create new categories or pick existing ones.
 
 This separation means users can update SUS without merge conflicts with their apps.
 
@@ -244,37 +250,39 @@ On build mode entry:
 
 ---
 
-## **Key Open Questions for Team Discussion**
+## **Current Status**
 
-1. **MCP server catalogue**: Which data sources do we support first? What's the configuration UX for connecting new sources?
-2. **Skill authorship process**: Who owns and reviews guidance skill PRs? Propose a lightweight review process (e.g., team lead approval).
-3. **Pod resource limits**: What CPU/memory allocation per pod? What's the max concurrent pods we want to support?
-4. **Auditor strictness**: Should the auditor block publish on warnings, or only hard errors? What's the escalation path if a user disagrees with the auditor?
-5. **App runtime isolation**: Should published apps in run mode run in a separate namespace or cluster? (Affects blast radius if an app has a bug.)
-6. **Rollback**: If a published app breaks, how does a non-engineer roll back? Propose: a **Revert** button in the catalog that restores the previous main commit for that app's directory.
+### **Implemented**
 
----
+* Landing page with catalog, search, tags, and category-based organization
+* Build mode: k3d cluster, Helm chart, build pod lifecycle, ttyd terminal, split-pane preview
+* Separate app repo (`sus-starter-pack`) with git-based publish flow
+* Save pushes working branch; publish merges to main
+* Session resumption via SQLite session store + git branches
+* Auto-runner detects app stack and serves on port 3000
+* Preview auto-refresh on content change with spinner loading state
+* Setup page for API key and Git token (K8s secrets)
+* SUS Platform API for secrets management (apps can manage credentials)
+* Pluggable identity provider interface (defaults to single-user)
+* Guidance skills framework with authoring guide
+* Usage analytics and version history tracking
+* CLAUDE.md with comprehensive environment/user context
+* k3d-based dev environment with Makefile targets
 
-## **Phased Rollout**
+### **Known Limitations**
 
-### **Phase 1 — Foundation**
+* Claude Code consent prompts (API key + bypass) require 2 manual clicks (#48)
+* No image paste or visual feedback in browser terminal (#66, #67)
+* All users are "anonymous" — no real identity or access gating (#64)
+* SQLite databases are ephemeral (lost on landing page pod restart)
+* No dedicated run pods — run mode proxies to build pods or static files
+* Auditor agent is advisory only, not enforced programmatically (#19)
 
-* Landing page with catalog (single-user mode, no auth)
-* build mode: pod lifecycle, WebSocket terminal proxy, xterm.js UI, split-pane preview
-* Monorepo setup with CLAUDE.md, runner \+ auditor agents
-* Git automation (branch, commit, publish flow)
+### **Open Questions**
 
-### **Phase 2 — Intelligence**
-
-* Guidance skills
-* MCP server integrations for local data sources
-* Session resumption
-* Pluggable identity provider interface \+ optional auth support
-
-### **Phase 3 — Scale**
-
-* Self-service skill authorship  
-* Catalog search \+ tagging  
-* Usage analytics (who's building what, weekly active users)  
-* App versioning \+ rollback UI
+1. **Auditor enforcement**: Should publish be gated on automated audit results? (#19)
+2. **Pod resource tuning**: Current limits work for single-user. Multi-user needs profiling. (#20)
+3. **App runtime isolation**: Should run mode use a separate namespace? (#21)
+4. **Caching strategy**: All caching is disabled. Need to evaluate what's safe to re-enable. (#59)
+5. **User identity**: How to identify users and gate access for multi-user deployments. (#64)
 
