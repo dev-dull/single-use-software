@@ -20,10 +20,11 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 RUN npm install -g @anthropic-ai/claude-code
 
 # Install ttyd — terminal-to-WebSocket bridge
-# Determine arch for download: aarch64 or x86_64
-RUN ARCH=$(uname -m) && \
+# Use TARGETARCH (set by Docker Buildx) to pick the right binary
+ARG TARGETARCH
+RUN if [ "$TARGETARCH" = "arm64" ]; then TTYD_ARCH="aarch64"; else TTYD_ARCH="x86_64"; fi && \
     curl -fsSL -o /usr/local/bin/ttyd \
-    "https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.${ARCH}" && \
+    "https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.${TTYD_ARCH}" && \
     chmod +x /usr/local/bin/ttyd
 
 # Create working directory
