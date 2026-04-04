@@ -109,20 +109,24 @@ When an app is published, a container image is built from the app's directory in
 
 ## **Repository Structure**
 
-All applications live in a single monorepo. Layout:
+SUS uses two separate repositories:
+
+* **Platform repo** (`single-use-software`) — the SUS platform code, Helm chart, Dockerfiles, CLAUDE.md, skills
+* **App repo** (`sus-starter-pack` or user's own fork) — all published apps, configured via `SUS_GIT_REPO_URL`
+
+The app repo layout:
 
 ```
-apps/
-  {team}/
-    {app-slug}/
-      sus.json             # app metadata (see below)
-      main.py              # entry point (Python + HTMX by default)
-      requirements.txt
-      ...
-claude/
-  CLAUDE.md                # global instructions (read-only, see below)
-  skills/                  # shared guidance skills (see below)
+{team}/
+  {app-slug}/
+    sus.json             # app metadata (see below)
+    main.py              # entry point (Python + HTMX by default)
+    requirements.txt
+    index.html           # or static site
+    ...
 ```
+
+This separation means users can update SUS without merge conflicts with their apps.
 
 **sus.json schema:**
 
