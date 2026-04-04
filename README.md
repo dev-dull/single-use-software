@@ -42,7 +42,7 @@ helm install sus ./charts/sus \
   --set gitRepo.url=https://github.com/you/sus-starter-pack.git
 ```
 
-Expose the `sus-landing` service (port 80) using your cluster's ingress, load balancer, or reverse proxy.
+Then expose SUS via ingress (see [Ingress](#ingress) below) or your preferred method.
 
 <details>
 <summary><strong>Local development with k3d</strong></summary>
@@ -115,6 +115,35 @@ SUS can be configured two ways:
 | Landing page resources | — | `landing.resources` in `values.yaml` |
 
 See [`charts/sus/values.yaml`](charts/sus/values.yaml) for all Helm values.
+
+### Ingress
+
+SUS includes an optional Ingress resource. Enable it in your Helm values:
+
+```bash
+helm install sus ./charts/sus \
+  --set ingress.enabled=true \
+  --set ingress.host=sus.example.com \
+  --set ingress.className=nginx
+```
+
+**WebSocket support is required.** The build terminal uses WebSockets (ttyd). Your ingress controller must allow WebSocket upgrades. For nginx-ingress, add these annotations:
+
+```yaml
+ingress:
+  enabled: true
+  host: sus.example.com
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+```
+
+For Traefik (common in k3s/k3d), WebSocket support is enabled by default — no extra annotations needed.
 
 ---
 

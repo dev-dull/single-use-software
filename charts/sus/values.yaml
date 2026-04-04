@@ -46,6 +46,27 @@ buildPod:
       cpu: "2"
       memory: 4Gi
 
+# -- Ingress configuration
+ingress:
+  enabled: false
+  # -- Ingress class name (e.g., nginx, traefik)
+  className: ""
+  # -- Hostname for the ingress
+  host: sus.local
+  # -- Annotations (WebSocket support is required — see README)
+  annotations: {}
+    # nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    # nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    # nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    # nginx.ingress.kubernetes.io/configuration-snippet: |
+    #   proxy_set_header Upgrade $http_upgrade;
+    #   proxy_set_header Connection "upgrade";
+  # -- TLS configuration
+  tls: []
+  #  - secretName: sus-tls
+  #    hosts:
+  #      - sus.local
+
 # -- Git repository for the app monorepo
 gitRepo:
   # -- URL of the monorepo (HTTPS or SSH)
