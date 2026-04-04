@@ -8,7 +8,7 @@ namespaces:
 # -- Landing page deployment configuration
 landing:
   image:
-    repository: localhost:5050/sus-landing
+    repository: ghcr.io/dev-dull/sus-landing
     tag: latest
     pullPolicy: Always
   replicaCount: 1
@@ -32,8 +32,8 @@ service:
 # -- Build pod configuration (user editing sessions)
 buildPod:
   image:
-    repository: sus-registry:5050/sus-build
-    tag: dev
+    repository: ghcr.io/dev-dull/sus-build
+    tag: latest
     pullPolicy: Always
   ports:
     terminal: 8080

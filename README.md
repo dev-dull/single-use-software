@@ -29,20 +29,27 @@ Fork [**sus-starter-pack**](https://github.com/dev-dull/sus-starter-pack) — th
 ### 2. Deploy to your cluster
 
 ```bash
+helm install sus oci://ghcr.io/dev-dull/charts/sus \
+  --set gitRepo.url=https://github.com/you/sus-starter-pack.git
+```
+
+That's it — pre-built images are pulled automatically from GHCR.
+
+Then expose SUS via ingress (see [Ingress](#ingress) below) or your preferred method.
+
+<details>
+<summary><strong>Building from source</strong></summary>
+
+```bash
 git clone https://github.com/dev-dull/single-use-software.git
 cd single-use-software
-
-# Build and push images to your container registry
 make build push
-
-# Install with Helm
 helm install sus ./charts/sus \
   --set landing.image.repository=your-registry/sus-landing \
   --set landing.image.tag=dev \
   --set gitRepo.url=https://github.com/you/sus-starter-pack.git
 ```
-
-Then expose SUS via ingress (see [Ingress](#ingress) below) or your preferred method.
+</details>
 
 <details>
 <summary><strong>Local development with k3d</strong></summary>
