@@ -84,11 +84,11 @@
     }
 
     .terminal-pane {
-      flex: 0 0 60%;
+      flex: 0 0 50%;
       display: flex;
       flex-direction: column;
       background: var(--bg-secondary);
-      min-width: 200px;
+      min-width: 300px;
       overflow: hidden;
     }
 
@@ -121,7 +121,7 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      min-width: 200px;
+      min-width: 300px;
       overflow: hidden;
     }
 
@@ -223,7 +223,8 @@
     document.addEventListener('mousemove', (e) => {
       if (!isDragging) return;
       const rect = panes.getBoundingClientRect();
-      const pct = Math.min(Math.max(((e.clientX - rect.left) / rect.width) * 100, 15), 85);
+      // Clamp between 30% and 70% to prevent either pane from becoming unusable.
+      const pct = Math.min(Math.max(((e.clientX - rect.left) / rect.width) * 100, 30), 70);
       terminalPane.style.flex = `0 0 ${pct}%`;
     });
 
@@ -233,6 +234,11 @@
       divider.classList.remove('active');
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+    });
+
+    // Double-click divider to reset to 50/50.
+    divider.addEventListener('dblclick', () => {
+      terminalPane.style.flex = '0 0 50%';
     });
 
     // --- Heartbeat ---
