@@ -83,6 +83,16 @@ setup, model selection, welcome flow, or permission grants.
 - Keep dependencies minimal. Add them to `requirements.txt`.
 - Always create a working app from the start — the user should see something in the preview pane immediately.
 
+### Important: the app runs inside an iframe
+
+The preview pane on the right is an **iframe** that proxies your app. This means:
+
+- **All links must stay within the app.** If a link navigates to `/` or an absolute path, it will break out of the iframe and load the SUS landing page instead. Use **relative links** or make sure all routes are handled by your app.
+- For FastAPI apps, all routes should be defined in your `main.py` — don't link to paths your app doesn't handle.
+- For static HTML, use relative hrefs like `href="page2.html"` not `href="/page2.html"`.
+- For HTMX, use `hx-target` within the page — HTMX works naturally within iframes.
+- If the app has multiple pages, use a single-page approach with HTMX partial swaps, or make sure every route (`/about`, `/settings`, etc.) is defined in your FastAPI app.
+
 ---
 
 ## Auto-Runner (port 3000)
