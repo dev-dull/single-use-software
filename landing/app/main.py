@@ -233,7 +233,12 @@ async def index(
     try:
         from .api_key import APIKeyManager
         from .git_token import GitTokenManager
-        setup_complete = APIKeyManager().is_configured() and GitTokenManager().is_configured()
+        from .repo_config import RepoConfigManager
+        setup_complete = (
+            APIKeyManager().is_configured()
+            and GitTokenManager().is_configured()
+            and RepoConfigManager().is_configured()
+        )
     except Exception:
         pass
 

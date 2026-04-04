@@ -78,6 +78,27 @@
     <div class="error">{{ error }}</div>
     {% endif %}
 
+    <!-- App Repository -->
+    <div class="card">
+      <h2>App Repository</h2>
+      {% if repo_configured %}
+      <div class="status ok"><span class="dot"></span> Configured — <code>{{ repo_url }}</code></div>
+      {% else %}
+      <div class="status missing"><span class="dot"></span> Not configured — where should your apps be stored?</div>
+      {% endif %}
+      <form method="post" action="/setup/repo-url">
+        <label for="repo_url">Repository URL</label>
+        <p class="hint">
+          Fork <a href="https://github.com/dev-dull/sus-starter-pack" target="_blank">sus-starter-pack</a>
+          to get started, then paste your fork's URL here.
+        </p>
+        <input type="text" id="repo_url" name="repo_url" placeholder="https://github.com/you/sus-starter-pack.git" required value="{{ repo_url or '' }}" />
+        <button type="submit" class="btn btn-primary">
+          {% if repo_configured %}Update{% else %}Save{% endif %}
+        </button>
+      </form>
+    </div>
+
     <!-- Anthropic API Key -->
     <div class="card">
       <h2>Anthropic API Key</h2>

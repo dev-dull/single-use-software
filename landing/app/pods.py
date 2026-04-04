@@ -36,6 +36,18 @@ class BuildPodManager:
     # ------------------------------------------------------------------
 
     @staticmethod
+    def _get_repo_url() -> str:
+        """Get the repo URL from ConfigMap or env var."""
+        try:
+            from .repo_config import RepoConfigManager
+            url = RepoConfigManager().get_url()
+            if url:
+                return url
+        except Exception:
+            pass
+        return os.environ.get("SUS_GIT_REPO_URL", "")
+
+    @staticmethod
     def _short_hash(user_id: str, app_slug: str) -> str:
         """Return an 8-char hex hash for pod-name uniqueness."""
         digest = hashlib.sha256(f"{user_id}:{app_slug}:{datetime.now(timezone.utc).isoformat()}".encode())
@@ -78,7 +90,7 @@ class BuildPodManager:
                         ],
                         env=[
                             client.V1EnvVar(name="GIT_BRANCH", value=branch),
-                            client.V1EnvVar(name="GIT_REPO_URL", value=os.environ.get("SUS_GIT_REPO_URL", "")),
+                            client.V1EnvVar(name="GIT_REPO_URL", value=self._get_repo_url()),
                             client.V1EnvVar(name="USER_ID", value=user_id),
                             client.V1EnvVar(name="APP_SLUG", value=app_slug),
                             client.V1EnvVar(name="APP_TEAM", value=team),

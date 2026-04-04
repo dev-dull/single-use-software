@@ -17,7 +17,15 @@ APPS_DIR = CLONE_DIR
 
 def _get_repo_url() -> str:
     """Get the app repo URL, injecting the git token for HTTPS auth if available."""
-    url = os.environ.get("SUS_GIT_REPO_URL", "")
+    # Check ConfigMap first, then env var.
+    url = ""
+    try:
+        from .repo_config import RepoConfigManager
+        url = RepoConfigManager().get_url()
+    except Exception:
+        pass
+    if not url:
+        url = os.environ.get("SUS_GIT_REPO_URL", "")
     if not url:
         return ""
 
