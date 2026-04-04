@@ -57,16 +57,26 @@ async def list_secrets() -> JSONResponse:
 
 
 @router.get("/{name}")
-async def get_secret(name: str) -> JSONResponse:
-    """Get a secret's key names (never expose values)."""
+async def get_secret(name: str, values: bool = False) -> JSONResponse:
+    """Get a secret's metadata and optionally its values.
+
+    Pass ?values=true to include decoded secret values.
+    By default only key names are returned.
+    """
     try:
         core = _get_core()
         secret = core.read_namespaced_secret(name, _namespace())
-        return JSONResponse({
+        result = {
             "name": secret.metadata.name,
             "keys": list(secret.data.keys()) if secret.data else [],
             "created": secret.metadata.creation_timestamp.isoformat() if secret.metadata.creation_timestamp else None,
-        })
+        }
+        if values and secret.data:
+            import base64
+            result["data"] = {
+                k: base64.b64decode(v).decode() for k, v in secret.data.items()
+            }
+        return JSONResponse(result)
     except ApiException as exc:
         if exc.status == 404:
             return JSONResponse({"error": "Secret not found"}, status_code=404)

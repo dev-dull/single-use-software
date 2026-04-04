@@ -148,11 +148,12 @@ Apps can manage Kubernetes secrets in the SUS namespace through these endpoints:
 |--------|----------|-------------|
 | GET | `$SUS_API_URL/api/secrets` | List all secrets (names and key names only, never values) |
 | GET | `$SUS_API_URL/api/secrets/{name}` | Get a secret's key names |
+| GET | `$SUS_API_URL/api/secrets/{name}?values=true` | Get a secret's key names **and values** |
 | POST | `$SUS_API_URL/api/secrets` | Create a secret. Body: `{"name": "...", "data": {"KEY": "value"}}` |
 | PUT | `$SUS_API_URL/api/secrets/{name}` | Update a secret. Body: `{"data": {"KEY": "value"}}` |
 | DELETE | `$SUS_API_URL/api/secrets/{name}` | Delete a secret |
 
-**Important:** Secret values are never returned by the GET endpoints — only key names. This is by design for security.
+**Reading values:** Use `?values=true` to get decoded secret values. Without this parameter, only key names are returned.
 
 Example from a Python app:
 ```python
