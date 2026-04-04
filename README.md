@@ -26,23 +26,40 @@ No coding required. Describe your app in plain language, watch it appear in a li
 
 Fork [**sus-starter-pack**](https://github.com/dev-dull/sus-starter-pack) — this is where your apps will be stored.
 
-### 2. Start the cluster
+### 2. Deploy to your cluster
 
 ```bash
 git clone https://github.com/dev-dull/single-use-software.git
 cd single-use-software
-make dev
+
+# Build and push images to your container registry
+make build push
+
+# Install with Helm
+helm install sus ./charts/sus \
+  --set landing.image.repository=your-registry/sus-landing \
+  --set landing.image.tag=dev \
+  --set gitRepo.url=https://github.com/you/sus-starter-pack.git
 ```
 
-This creates a local k3d Kubernetes cluster, builds the container images, and deploys SUS.
+Expose the `sus-landing` service (port 80) using your cluster's ingress, load balancer, or reverse proxy.
 
-### 3. Access SUS
+<details>
+<summary><strong>Local development with k3d</strong></summary>
+
+For local testing without an existing cluster:
 
 ```bash
+make dev    # Creates a k3d cluster, builds images, and deploys
 kubectl port-forward -n sus svc/sus-landing 9090:80
 ```
 
 Open [http://localhost:9090](http://localhost:9090)
+</details>
+
+### 3. Access SUS
+
+Open SUS through your ingress or load balancer URL.
 
 ### 4. Complete setup
 
