@@ -115,7 +115,13 @@ async def resolve_identity(
 
 @app.get("/new", response_class=HTMLResponse)
 async def new_app_form(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse(request, "new_app.html", context={})
+    # Get existing categories from the catalog for the dropdown.
+    existing_categories = set()
+    for a in scan_apps():
+        existing_categories.add(a.get("team", ""))
+    categories = sorted(c for c in existing_categories if c)
+    return templates.TemplateResponse(request, "new_app.html",
+        context={"categories": categories})
 
 
 @app.post("/new", response_model=None)
@@ -123,27 +129,40 @@ async def new_app_create(
     request: Request,
     app_name: str = Form(...),
     app_description: str = Form(""),
+    category: str = Form(...),
+    new_category: str = Form(""),
 ):
     import re
     from fastapi.responses import RedirectResponse
 
     name = app_name.strip()
+    # Use new_category if "new" was selected, otherwise use the dropdown value.
+    team = new_category.strip() if category == "__new__" else category.strip()
+
     if not name:
+        categories = sorted(set(a.get("team", "") for a in scan_apps()) - {""})
         return templates.TemplateResponse(request, "new_app.html",
-            context={"error": "App name is required.", "app_name": name, "app_description": app_description})
+            context={"error": "App name is required.", "app_name": name,
+                      "app_description": app_description, "categories": categories})
 
-    # Generate a slug from the name.
+    if not team:
+        categories = sorted(set(a.get("team", "") for a in scan_apps()) - {""})
+        return templates.TemplateResponse(request, "new_app.html",
+            context={"error": "Category is required.", "app_name": name,
+                      "app_description": app_description, "categories": categories})
+
+    # Generate slugs.
     slug = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
+    team_slug = re.sub(r'[^a-z0-9]+', '-', team.lower()).strip('-')
+
     if not slug:
+        categories = sorted(set(a.get("team", "") for a in scan_apps()) - {""})
         return templates.TemplateResponse(request, "new_app.html",
-            context={"error": "Invalid app name.", "app_name": name, "app_description": app_description})
+            context={"error": "Invalid app name.", "app_name": name,
+                      "app_description": app_description, "categories": categories})
 
-    # Use "apps" as the team for user-created apps.
-    team = "apps"
-
-    # Redirect to the build page — the build pod will create the app directory.
     return RedirectResponse(
-        url=f"/build/{team}/{slug}",
+        url=f"/build/{team_slug}/{slug}",
         status_code=303,
     )
 

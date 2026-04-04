@@ -2,7 +2,7 @@
 {% for app in catalog %}
 <div class="card">
   <h2>{{ app.name }}</h2>
-  <div class="meta">{{ app.team }} &middot; {{ app.get("owner", "\u2014") }}</div>
+  <div class="meta">{{ app.team }} &middot; {{ app.get("owner", "—") }}</div>
   <div class="description">{{ app.get("description", "") }}</div>
   {% if app.get("tags") %}
   <div class="card-tags">

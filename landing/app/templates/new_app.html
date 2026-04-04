@@ -27,13 +27,19 @@
     label { display: block; font-weight: 500; margin-bottom: .35rem; font-size: .9rem; }
     .hint { color: var(--muted); font-size: .8rem; margin-bottom: .5rem; }
 
-    input[type="text"], textarea {
+    input[type="text"], textarea, select {
       width: 100%; padding: .5rem .65rem; border: 1px solid var(--border);
       border-radius: var(--radius); font-size: .9rem; margin-bottom: 1rem;
-      font-family: inherit;
+      font-family: inherit; background: #fff;
     }
     textarea { min-height: 80px; resize: vertical; }
-    input:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+    input:focus, textarea:focus, select:focus {
+      outline: none; border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    }
+
+    #new-category-input { display: none; }
+    #new-category-input.visible { display: block; }
 
     .btn {
       padding: .6rem 1.25rem; font-size: .9rem; border-radius: var(--radius);
@@ -54,7 +60,7 @@
   <div class="card">
     <div class="logo">🤨</div>
     <h1>Create New App</h1>
-    <p class="subtitle">Give your app a name and describe what it should do. Claude will build it.</p>
+    <p class="subtitle">Give your app a name, pick a category, and describe what it should do.</p>
 
     {% if error %}
     <div class="error">{{ error }}</div>
@@ -64,6 +70,22 @@
       <label for="app_name">App Name</label>
       <p class="hint">A short, friendly name. Example: "Team Lunch Picker"</p>
       <input type="text" id="app_name" name="app_name" placeholder="My Cool App" required value="{{ app_name or '' }}" />
+
+      <label for="category">Category</label>
+      <p class="hint">Group your app with similar ones. Pick an existing category or create a new one.</p>
+      <select id="category" name="category" required onchange="toggleNewCategory(this)">
+        <option value="" disabled selected>Choose a category...</option>
+        {% for cat in categories %}
+        <option value="{{ cat }}">{{ cat }}</option>
+        {% endfor %}
+        <option value="__new__">+ Create new category</option>
+      </select>
+
+      <div id="new-category-input">
+        <label for="new_category">New Category Name</label>
+        <p class="hint">Example: "tools", "dashboards", "games"</p>
+        <input type="text" id="new_category" name="new_category" placeholder="my-category" value="{{ new_category or '' }}" />
+      </div>
 
       <label for="app_description">What should it do?</label>
       <p class="hint">Describe your app in plain language. Be as specific as you like.</p>
@@ -77,6 +99,19 @@
   </div>
 
   <script>
+    function toggleNewCategory(select) {
+      const newCatDiv = document.getElementById('new-category-input');
+      const newCatInput = document.getElementById('new_category');
+      if (select.value === '__new__') {
+        newCatDiv.classList.add('visible');
+        newCatInput.required = true;
+        newCatInput.focus();
+      } else {
+        newCatDiv.classList.remove('visible');
+        newCatInput.required = false;
+      }
+    }
+
     document.getElementById('new-app-form').addEventListener('submit', function() {
       const btn = document.getElementById('btn-create');
       btn.disabled = true;
