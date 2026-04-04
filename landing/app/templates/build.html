@@ -317,58 +317,39 @@
       }
     }, 3000);
 
-    let isPublishing = false;
-
-    // Warn if the user tries to leave during publish.
-    window.addEventListener('beforeunload', (e) => {
-      if (isPublishing) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    });
+    function _showToast(message, type) {
+      const toast = document.createElement('div');
+      const bg = type === 'success' ? '#16a34a' : type === 'error' ? '#dc2626' : '#2563eb';
+      toast.style.cssText = `position:fixed;bottom:20px;right:20px;background:${bg};color:#fff;padding:12px 20px;border-radius:8px;font-size:14px;font-weight:500;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.3);max-width:400px;`;
+      toast.innerHTML = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 8000);
+      // Allow clicking to dismiss.
+      toast.addEventListener('click', () => toast.remove());
+    }
 
     async function doPublish() {
       const btn = document.getElementById('btn-publish');
-      const saveBtn = document.getElementById('btn-save');
       btn.disabled = true;
-      saveBtn.disabled = true;
       btn.textContent = 'Publishing...';
-      isPublishing = true;
       try {
         const resp = await fetch(`${BASE}/publish?pod_ip=${encodeURIComponent(POD_IP)}`, { method: 'POST' });
         const data = await resp.json();
         if (data.status === 'publish_requested') {
           btn.textContent = 'Published!';
           btn.style.background = '#16a34a';
-          // Show success overlay — the Run link is the primary action.
-          const overlay = document.createElement('div');
-          overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;';
-          overlay.innerHTML = `
-            <div style="background:#1a1a2e;border:1px solid #30363d;border-radius:12px;padding:2.5rem;text-align:center;max-width:400px;">
-              <div style="font-size:2rem;margin-bottom:0.5rem;">&#10003;</div>
-              <h2 style="color:#e6edf3;margin-bottom:0.5rem;">Published!</h2>
-              <p style="color:#8b949e;margin-bottom:1.5rem;">Your app is live and ready to use.</p>
-              <a href="/run/${TEAM}/${APP_SLUG}" style="display:inline-block;padding:10px 24px;background:#16a34a;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Run it now &rarr;</a>
-              <br/>
-              <a href="/" style="color:#8b949e;font-size:13px;margin-top:12px;display:inline-block;text-decoration:none;">Back to catalog</a>
-            </div>`;
-          document.body.appendChild(overlay);
+          _showToast(`Published! <a href="/run/${TEAM}/${APP_SLUG}" target="_blank" style="color:#fff;text-decoration:underline;margin-left:6px;">Run it &rarr;</a>`, 'success');
+          setTimeout(() => { btn.textContent = 'Publish'; btn.style.background = ''; }, 4000);
         } else if (data.status === 'error') {
-          btn.textContent = 'Error';
-          btn.style.background = '#dc2626';
-          alert('Publishing failed: ' + (data.detail || 'unknown error'));
-          setTimeout(() => { btn.textContent = 'Publish'; btn.style.background = ''; }, 3000);
+          _showToast('Publishing failed: ' + (data.detail || 'unknown error'), 'error');
+          btn.textContent = 'Publish';
         }
       } catch (err) {
         console.error('Publish failed:', err);
-        btn.textContent = 'Error';
-        btn.style.background = '#dc2626';
-        alert('Publishing failed — please try again.');
-        setTimeout(() => { btn.textContent = 'Publish'; btn.style.background = ''; }, 3000);
+        _showToast('Publishing failed — please try again.', 'error');
+        btn.textContent = 'Publish';
       } finally {
-        isPublishing = false;
         btn.disabled = false;
-        saveBtn.disabled = false;
       }
     }
   </script>
