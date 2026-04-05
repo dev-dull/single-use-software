@@ -189,8 +189,9 @@ _runner_loop &
 
 export DISABLE_AUTOUPDATER=1
 
-# Start Claude in the app directory so it sees the app files.
+# Ensure the app directory exists and start Claude there.
+mkdir -p "$APP_DIR"
 cd "$APP_DIR"
 
 exec ttyd --port 8080 --writable --base-path / \
-    claude --dangerously-skip-permissions --model sonnet
+    bash -c "cd '$APP_DIR' && exec claude --dangerously-skip-permissions --model sonnet"
