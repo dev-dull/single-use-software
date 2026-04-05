@@ -36,12 +36,6 @@ spec:
               value: {{ .Values.gitRepo.url | quote }}
             - name: SUS_REPO_CLONE_DIR
               value: /data/repo
-          volumeMounts:
-            - name: repo-data
-              mountPath: /data
-      volumes:
-        - name: repo-data
-          emptyDir: {}
           livenessProbe:
             httpGet:
               path: /healthz
@@ -56,3 +50,9 @@ spec:
             periodSeconds: 5
           resources:
             {{- toYaml .Values.landing.resources | nindent 12 }}
+          volumeMounts:
+            - name: repo-data
+              mountPath: /data
+      volumes:
+        - name: repo-data
+          emptyDir: {}
