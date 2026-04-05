@@ -52,7 +52,8 @@ class GitWorkflowManager:
     # Public API
     # ------------------------------------------------------------------
 
-    def start_session(self, user_id: str, team: str, app_slug: str) -> dict:
+    def start_session(self, user_id: str, team: str, app_slug: str,
+                       app_name: str = "", app_description: str = "") -> dict:
         """Start or resume a build session.
 
         Returns a dict with ``pod_name``, ``pod_ip``, and ``branch``.
@@ -81,18 +82,18 @@ class GitWorkflowManager:
         else:
             branch = self._generate_branch(user_id, app_slug)
 
-        # Look up app metadata from the catalog for context.
-        app_name = ""
-        app_description = ""
-        try:
-            from .catalog import scan_apps
-            for app in scan_apps():
-                if app.get("team") == team and app.get("slug") == app_slug:
-                    app_name = app.get("name", "")
-                    app_description = app.get("description", "")
-                    break
-        except Exception:
-            pass
+        # Look up app metadata from the catalog if not provided directly.
+        if not app_name:
+            try:
+                from .catalog import scan_apps
+                for app in scan_apps():
+                    if app.get("team") == team and app.get("slug") == app_slug:
+                        app_name = app.get("name", "")
+                        if not app_description:
+                            app_description = app.get("description", "")
+                        break
+            except Exception:
+                pass
 
         # Create a new pod and persist the session.
         pod_name = self._pods.create_build_pod(

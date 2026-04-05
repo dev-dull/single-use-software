@@ -55,6 +55,8 @@ async def build_ui(
     team: str,
     app_slug: str,
     pod_ip: str = Query("", alias="pod_ip"),
+    app_name: str = Query("", alias="app_name"),
+    app_description: str = Query("", alias="app_description"),
 ) -> HTMLResponse:
     """Render the build-mode UI with terminal and preview panes.
 
@@ -65,7 +67,10 @@ async def build_ui(
         try:
             wf = _get_workflow()
             user_id = "anonymous"
-            info = wf.start_session(user_id=user_id, team=team, app_slug=app_slug)
+            info = wf.start_session(
+                user_id=user_id, team=team, app_slug=app_slug,
+                app_name=app_name, app_description=app_description,
+            )
             pod_ip = info.get("pod_ip") or ""
 
             # Pod may still be scheduling — poll briefly for an IP.

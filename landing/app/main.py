@@ -161,8 +161,10 @@ async def new_app_create(
             context={"error": "Invalid app name.", "app_name": name,
                       "app_description": app_description, "categories": categories})
 
+    from urllib.parse import urlencode
+    params = urlencode({"app_name": name, "app_description": app_description})
     return RedirectResponse(
-        url=f"/build/{team_slug}/{slug}",
+        url=f"/build/{team_slug}/{slug}?{params}",
         status_code=303,
     )
 
