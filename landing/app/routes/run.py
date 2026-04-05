@@ -104,25 +104,32 @@ async def run_proxy(
         except Exception:
             logger.exception("Failed to look up run pod for %s/%s", team, app_slug)
 
+    # Try proxying to the pod. If it fails (stale IP, deleted pod), clear
+    # pod_ip and fall through to static file serving.
+    if pod_ip:
+        try:
+            resp = await http_proxy(
+                request,
+                pod_ip=pod_ip,
+                pod_port=3000,
+                path=f"/{path}" if path else "/",
+            )
+            if resp.status_code != 502:
+                return resp
+            logger.warning("502 from pod_ip %s for %s/%s — falling through to static files", pod_ip, team, app_slug)
+        except Exception:
+            logger.warning("Stale pod_ip %s for %s/%s — falling through to static files", pod_ip, team, app_slug)
+
     # 3. Fall back to serving static files from the repo clone.
-    if not pod_ip:
-        from ..repo_sync import get_apps_root
-        app_dir = get_apps_root() / team / app_slug
-        serve_path = path.strip("/") if path.strip("/") else "index.html"
-        static_file = app_dir / serve_path
-        if static_file.is_file():
-            from fastapi.responses import FileResponse
-            return FileResponse(static_file)
+    from ..repo_sync import get_apps_root
+    app_dir = get_apps_root() / team / app_slug
+    serve_path = path.strip("/") if path.strip("/") else "index.html"
+    static_file = app_dir / serve_path
+    if static_file.is_file():
+        from fastapi.responses import FileResponse
+        return FileResponse(static_file)
 
-    if not pod_ip:
-        return Response(
-            content="This app hasn't been published yet. Build it first!",
-            status_code=503,
-        )
-
-    return await http_proxy(
-        request,
-        pod_ip=pod_ip,
-        pod_port=3000,
-        path=f"/{path}" if path else "/",
+    return Response(
+        content="This app hasn't been published yet. Build it first!",
+        status_code=503,
     )
