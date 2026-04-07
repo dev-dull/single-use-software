@@ -255,18 +255,23 @@ On build mode entry:
 ### **Implemented**
 
 * Landing page with catalog, search, tags, and category-based organization
-* Build mode: k3d cluster, Helm chart, build pod lifecycle, ttyd terminal, split-pane preview
+* Build mode: Helm chart deployable to any cluster, build pod lifecycle, ttyd terminal, split-pane preview
 * Separate app repo (`sus-starter-pack`) with git-based publish flow
-* Save pushes working branch; publish merges to main
+* Save pushes working branch; publish merges to main and pushes
 * Session resumption via SQLite session store + git branches
 * Auto-runner detects app stack and serves on port 3000
 * Preview auto-refresh on content change with spinner loading state
-* Setup page for API key and Git token (K8s secrets)
-* SUS Platform API for secrets management (apps can manage credentials)
+* **Dedicated run pods** created on publish using build pod image with `run-entrypoint.sh`
+* **Auto-create run pods** on first Run request if app exists in repo but no pod is running
+* **Loading page** with spinner while run pod starts (5-min timeout with error)
+* Setup page for API key, Git token, and repo URL (K8s secrets/configmap)
+* Optional Helm Ingress template with WebSocket annotation examples
+* SUS Platform API for secrets management (`/api/secrets`, apps can manage credentials)
 * Pluggable identity provider interface (defaults to single-user)
 * Guidance skills framework with authoring guide
 * Usage analytics and version history tracking
 * CLAUDE.md with comprehensive environment/user context
+* GitHub Actions CI/CD: multi-arch Docker images and Helm chart published to GHCR
 * k3d-based dev environment with Makefile targets
 
 ### **Known Limitations**
@@ -274,9 +279,9 @@ On build mode entry:
 * Claude Code consent prompts (API key + bypass) require 2 manual clicks (#48)
 * No image paste or visual feedback in browser terminal (#66, #67)
 * All users are "anonymous" — no real identity or access gating (#64)
-* SQLite databases are ephemeral (lost on landing page pod restart)
-* No dedicated run pods — run mode proxies to build pods or static files
+* SQLite databases are ephemeral (lost on landing page pod restart) — see #68
 * Auditor agent is advisory only, not enforced programmatically (#19)
+* All browser caching disabled (#59)
 
 ### **Open Questions**
 
@@ -285,4 +290,5 @@ On build mode entry:
 3. **App runtime isolation**: Should run mode use a separate namespace? (#21)
 4. **Caching strategy**: All caching is disabled. Need to evaluate what's safe to re-enable. (#59)
 5. **User identity**: How to identify users and gate access for multi-user deployments. (#64)
+6. **Persistent storage**: SQLite + emptyDir is ephemeral. Need PostgreSQL sidecar or platform API. (#68)
 
