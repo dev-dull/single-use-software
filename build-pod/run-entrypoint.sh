@@ -29,14 +29,12 @@ if [ -z "$REPO_URL" ]; then
     exit 1
 fi
 
-# Clone the repo (always main).
-cd /tmp
-git clone --depth 1 "$REPO_URL" /tmp/repo-clone
-mkdir -p /repo
-cp -a /tmp/repo-clone/. /repo/
-rm -rf /tmp/repo-clone
+# Clone the repo to a separate directory (avoid baked-in /repo/claude conflicts).
+APP_ROOT="/srv/app"
+mkdir -p "$APP_ROOT"
+git clone --depth 1 "$REPO_URL" "$APP_ROOT"
 
-APP_DIR="/repo/${APP_TEAM}/${APP_SLUG}"
+APP_DIR="${APP_ROOT}/${APP_TEAM}/${APP_SLUG}"
 if [ ! -d "$APP_DIR" ]; then
     echo "ERROR: app directory $APP_DIR not found in repo" >&2
     exit 1
