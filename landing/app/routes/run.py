@@ -165,43 +165,64 @@ def _starting_page(team: str, app_slug: str) -> HTMLResponse:
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤨</text></svg>" />
   <meta http-equiv="refresh" content="5" />
   <style>
-    body {{
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      height: 100vh; margin: 0; font-family: -apple-system, sans-serif;
-      background: #0f0f13; color: #f5f0e8;
+    :root {{
+      --bg: #f5f5f5;
+      --card-bg: #ffffff;
+      --text: #1a1a1a;
+      --muted: #666;
+      --accent: #2563eb;
+      --border: #e0e0e0;
+      --radius: 8px;
     }}
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.5;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 2rem 1rem;
+    }}
+    .card {{
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 2.5rem 3rem;
+      max-width: 480px; width: 100%; text-align: center;
+    }}
+    .logo {{ font-size: 2.5rem; margin-bottom: 1rem; }}
     .spinner {{
-      width: 48px; height: 48px; border: 4px solid #333;
-      border-top: 4px solid #4a7c8e; border-radius: 50%;
-      animation: spin 1s linear infinite; margin-bottom: 1.5rem;
+      width: 40px; height: 40px;
+      border: 3px solid var(--border);
+      border-top: 3px solid var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1.5rem;
     }}
     @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
-    h1 {{ font-size: 1.5rem; margin: 0 0 .5rem; font-weight: 400; }}
-    p  {{ color: #888; margin: .25rem 0; font-size: .9rem; }}
-    .app-name {{ color: #4a7c8e; font-weight: 600; }}
-    .countdown {{ color: #666; font-size: .8rem; margin-top: 1.5rem; }}
+    h1 {{ font-size: 1.25rem; margin-bottom: .5rem; font-weight: 600; }}
+    p  {{ color: var(--muted); font-size: .9rem; margin: .25rem 0; }}
+    .app-name {{ color: var(--accent); font-weight: 600; }}
+    .countdown {{ color: var(--muted); font-size: .8rem; margin-top: 1.5rem; }}
+    a {{ color: var(--accent); text-decoration: none; }}
+    a:hover {{ text-decoration: underline; }}
   </style>
   <script>
-    // Track elapsed time in localStorage so we can show a real error after a timeout.
     const key = 'sus-starting-{team}-{app_slug}';
     const start = parseInt(localStorage.getItem(key) || '0');
     const now = Date.now();
     if (!start) {{ localStorage.setItem(key, now.toString()); }}
     const elapsed = start ? Math.floor((now - start) / 1000) : 0;
-    if (elapsed > 300) {{ // 5 minute timeout
+    if (elapsed > 300) {{
       localStorage.removeItem(key);
       document.title = 'Failed to start';
       window.stop();
       document.addEventListener('DOMContentLoaded', () => {{
         document.body.innerHTML = `
-          <div style="text-align:center; max-width: 500px; padding: 2rem;">
-            <div style="font-size:3rem; margin-bottom:1rem;">😞</div>
+          <div class="card">
+            <div class="logo">😞</div>
             <h1>The app didn't start in time</h1>
             <p>We waited 5 minutes for <span class="app-name">{team}/{app_slug}</span> to start, but it didn't respond.</p>
             <p>This usually means the app has an error or is missing dependencies.</p>
             <p style="margin-top:1.5rem;">
-              <a href="/build/{team}/{app_slug}" style="color:#4a7c8e;">Open in build mode to investigate</a> ·
-              <a href="/" style="color:#888;">Back to catalog</a>
+              <a href="/build/{team}/{app_slug}">Open in build mode to investigate</a><br/>
+              <a href="/" style="color:var(--muted);">&larr; Back to catalog</a>
             </p>
           </div>`;
       }});
@@ -213,9 +234,12 @@ def _starting_page(team: str, app_slug: str) -> HTMLResponse:
   </script>
 </head>
 <body>
-  <div class="spinner"></div>
-  <h1>Starting <span class="app-name">{team}/{app_slug}</span>...</h1>
-  <p>The app is being prepared. This usually takes 30-90 seconds.</p>
-  <p class="countdown">Waiting <span id="elapsed">0s</span> · Auto-refreshing every 5 seconds</p>
+  <div class="card">
+    <div class="logo">🤨</div>
+    <div class="spinner"></div>
+    <h1>Starting <span class="app-name">{team}/{app_slug}</span></h1>
+    <p>The app is being prepared. This usually takes 30-90 seconds.</p>
+    <p class="countdown">Waiting <span id="elapsed">0s</span> · Auto-refreshing every 5 seconds</p>
+  </div>
 </body>
 </html>""")
