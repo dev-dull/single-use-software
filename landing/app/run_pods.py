@@ -78,7 +78,7 @@ class RunPodManager:
                     client.V1Container(
                         name="app",
                         image=image,
-                        image_pull_policy="Always",
+                        image_pull_policy="IfNotPresent",
                         command=["/run-entrypoint.sh"],
                         ports=[
                             client.V1ContainerPort(container_port=3000, name="http"),

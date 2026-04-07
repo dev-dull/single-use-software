@@ -27,6 +27,18 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then TTYD_ARCH="aarch64"; else TTYD_ARCH="x8
     "https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.${TTYD_ARCH}" && \
     chmod +x /usr/local/bin/ttyd
 
+# Pre-install common Python deps for SUS apps to avoid pip install on every cold start.
+# These are the most common packages used by FastAPI + HTMX apps in SUS.
+RUN pip install --no-cache-dir \
+    fastapi \
+    uvicorn[standard] \
+    jinja2 \
+    httpx \
+    python-multipart \
+    starlette \
+    pydantic \
+    aiosqlite
+
 # Create working directory
 RUN mkdir -p /repo/claude/skills
 
