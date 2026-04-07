@@ -52,6 +52,16 @@ class RunPodManager:
         app_slug: str,
         image: str,
     ) -> client.V1Pod:
+        # Get the repo URL from ConfigMap or env var.
+        repo_url = ""
+        try:
+            from .repo_config import RepoConfigManager
+            repo_url = RepoConfigManager().get_url()
+        except Exception:
+            pass
+        if not repo_url:
+            repo_url = os.environ.get("SUS_GIT_REPO_URL", "")
+
         return client.V1Pod(
             metadata=client.V1ObjectMeta(
                 name=name,
@@ -68,8 +78,25 @@ class RunPodManager:
                     client.V1Container(
                         name="app",
                         image=image,
+                        image_pull_policy="Always",
+                        command=["/run-entrypoint.sh"],
                         ports=[
                             client.V1ContainerPort(container_port=3000, name="http"),
+                        ],
+                        env=[
+                            client.V1EnvVar(name="APP_TEAM", value=team),
+                            client.V1EnvVar(name="APP_SLUG", value=app_slug),
+                            client.V1EnvVar(name="GIT_REPO_URL", value=repo_url),
+                            client.V1EnvVar(
+                                name="GIT_TOKEN",
+                                value_from=client.V1EnvVarSource(
+                                    secret_key_ref=client.V1SecretKeySelector(
+                                        name="sus-git-token",
+                                        key="GIT_TOKEN",
+                                        optional=True,
+                                    ),
+                                ),
+                            ),
                         ],
                         resources=client.V1ResourceRequirements(
                             requests={
@@ -80,9 +107,6 @@ class RunPodManager:
                                 "cpu": self._cpu_limit,
                                 "memory": self._mem_limit,
                             },
-                        ),
-                        security_context=client.V1SecurityContext(
-                            read_only_root_filesystem=True,
                         ),
                     )
                 ],

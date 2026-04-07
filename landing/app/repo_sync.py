@@ -38,9 +38,12 @@ def _get_repo_url() -> str:
     except Exception:
         pass
 
-    # Inject token into HTTPS URLs: https://TOKEN@github.com/...
-    if token and url.startswith("https://"):
-        url = re.sub(r"^https://", f"https://{token}@", url)
+    # Inject token into HTTP(S) URLs: https://TOKEN@host/... or http://TOKEN@host/...
+    if token:
+        if url.startswith("https://"):
+            url = re.sub(r"^https://", f"https://{token}@", url)
+        elif url.startswith("http://"):
+            url = re.sub(r"^http://", f"http://{token}@", url)
 
     return url
 

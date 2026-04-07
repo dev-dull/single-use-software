@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime, timezone
 
 from .pods import BuildPodManager
@@ -210,14 +211,45 @@ class GitWorkflowManager:
         except Exception:
             logger.exception("Failed to push to app repo for %s/%s — saving locally only", team, app_slug)
 
-        # Register the build pod as the run target for immediate serving.
+        # Create a dedicated run pod that survives build pod deletion.
+        # The run pod uses the same image but with a different entrypoint
+        # that clones the repo and runs the published app.
+        run_pod_ip = pod_ip
+        run_pod_name = pod_name
+        try:
+            from .run_pods import RunPodManager
+            run_mgr = RunPodManager()
+            # Tear down any existing run pod for this app (rolling update).
+            existing = run_mgr.find_run_pod(team, app_slug)
+            if existing:
+                run_mgr.delete_run_pod(existing["name"])
+
+            # Create a new run pod using the build pod image (same image,
+            # different entrypoint).
+            build_image = os.environ.get("SUS_BUILD_IMAGE", "")
+            if build_image:
+                run_info = run_mgr.create_run_pod(team=team, app_slug=app_slug, image=build_image)
+                run_pod_name = run_info["name"]
+                # Poll briefly for the IP.
+                import time
+                for _ in range(10):
+                    time.sleep(2)
+                    info = run_mgr.get_run_pod(run_pod_name)
+                    if info and info.get("pod_ip"):
+                        run_pod_ip = info["pod_ip"]
+                        break
+                logger.info("Created run pod %s for %s/%s at %s", run_pod_name, team, app_slug, run_pod_ip)
+        except Exception:
+            logger.exception("Failed to create dedicated run pod for %s/%s — falling back to build pod", team, app_slug)
+
+        # Register the run pod (or build pod fallback) as the run target.
         from .published_apps import PublishedAppStore
         store = PublishedAppStore()
         store.publish(
             team=team,
             app_slug=app_slug,
-            pod_ip=pod_ip,
-            pod_name=pod_name,
+            pod_ip=run_pod_ip,
+            pod_name=run_pod_name,
             published_by=user_id,
         )
 

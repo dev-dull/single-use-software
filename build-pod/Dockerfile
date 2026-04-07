@@ -73,9 +73,10 @@ ENV DISABLE_AUTOUPDATER=1
 
 WORKDIR /repo
 
-# Copy and set up entrypoint
+# Copy and set up entrypoints (build pod uses entrypoint.sh, run pod uses run-entrypoint.sh)
 COPY build-pod/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY build-pod/run-entrypoint.sh /run-entrypoint.sh
+RUN chmod +x /entrypoint.sh /run-entrypoint.sh
 
 # Expose ports:
 #   8080 — Claude Code terminal (ttyd WebSocket)
