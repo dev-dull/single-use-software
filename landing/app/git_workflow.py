@@ -198,16 +198,18 @@ class GitWorkflowManager:
             except Exception:
                 pass
 
-            # Push to main (merge the branch).
-            self._pods.exec_in_pod(pod_name, [
+            # Push to main (merge the branch). Use set -e so failures are visible.
+            merge_result = self._pods.exec_in_pod(pod_name, [
                 "bash", "-c",
-                "cd /repo && "
-                "git checkout main 2>/dev/null && "
+                "set -e && cd /repo && "
+                "git fetch origin main && "
+                "(git checkout main || git checkout -b main origin/main) && "
+                "git pull --ff-only origin main || true && "
                 "git merge --no-edit ${GIT_BRANCH} && "
                 "git push origin main && "
-                "git checkout ${GIT_BRANCH}"
+                "git checkout ${GIT_BRANCH} 2>&1"
             ])
-            logger.info("Pushed published changes for %s/%s to app repo", team, app_slug)
+            logger.info("Pushed published changes for %s/%s to app repo: %s", team, app_slug, merge_result.strip()[-200:] if merge_result else "")
         except Exception:
             logger.exception("Failed to push to app repo for %s/%s — saving locally only", team, app_slug)
 
