@@ -129,50 +129,23 @@ async def run_proxy(
         from fastapi.responses import FileResponse
         return FileResponse(static_file)
 
-    # 4. App exists in the repo but no run pod and no static files —
-    # auto-create a run pod from the build pod image.
+    # 4. App exists in the repo but no running pod —
+    # check if a pod is already starting, otherwise create one.
     sus_json = app_dir / "sus.json"
     if sus_json.is_file():
         try:
-            import os, asyncio
+            import os
             mgr = _get_run_pod_mgr()
             build_image = os.environ.get("SUS_BUILD_IMAGE", "")
             if build_image:
-                logger.info("Auto-creating run pod for %s/%s", team, app_slug)
-                run_info = mgr.create_run_pod(team=team, app_slug=app_slug, image=build_image)
-                run_pod_name = run_info["name"]
-                # Wait for the pod to get an IP and be ready.
-                for _ in range(15):
-                    await asyncio.sleep(2)
-                    info = mgr.get_run_pod(run_pod_name)
-                    if info and info.get("pod_ip") and info.get("phase") == "Running":
-                        pod_ip = info["pod_ip"]
-                        break
+                # Check if a pod for this app is already pending/starting.
+                existing = mgr.find_run_pod(team, app_slug)
+                if not existing:
+                    logger.info("Auto-creating run pod for %s/%s", team, app_slug)
+                    mgr.create_run_pod(team=team, app_slug=app_slug, image=build_image)
 
-                if pod_ip:
-                    # Record in published store so subsequent requests skip auto-create.
-                    try:
-                        store = _get_published_store()
-                        store.publish(
-                            team=team, app_slug=app_slug,
-                            pod_ip=pod_ip, pod_name=run_pod_name,
-                            published_by="auto",
-                        )
-                    except Exception:
-                        pass
-
-                    # Give the app a moment to start serving.
-                    for _ in range(10):
-                        try:
-                            resp = await http_proxy(
-                                request, pod_ip=pod_ip, pod_port=3000,
-                                path=f"/{path}" if path else "/",
-                            )
-                            if resp.status_code != 502:
-                                return resp
-                        except Exception:
-                            pass
-                        await asyncio.sleep(2)
+                # Return a loading page that auto-refreshes.
+                return _starting_page(team, app_slug)
         except Exception:
             logger.exception("Failed to auto-create run pod for %s/%s", team, app_slug)
 
@@ -180,3 +153,69 @@ async def run_proxy(
         content="This app hasn't been published yet. Build it first!",
         status_code=503,
     )
+
+
+def _starting_page(team: str, app_slug: str) -> HTMLResponse:
+    """Return a loading page that auto-refreshes while the run pod starts."""
+    return HTMLResponse(content=f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Starting {team}/{app_slug}...</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤨</text></svg>" />
+  <meta http-equiv="refresh" content="5" />
+  <style>
+    body {{
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100vh; margin: 0; font-family: -apple-system, sans-serif;
+      background: #0f0f13; color: #f5f0e8;
+    }}
+    .spinner {{
+      width: 48px; height: 48px; border: 4px solid #333;
+      border-top: 4px solid #4a7c8e; border-radius: 50%;
+      animation: spin 1s linear infinite; margin-bottom: 1.5rem;
+    }}
+    @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
+    h1 {{ font-size: 1.5rem; margin: 0 0 .5rem; font-weight: 400; }}
+    p  {{ color: #888; margin: .25rem 0; font-size: .9rem; }}
+    .app-name {{ color: #4a7c8e; font-weight: 600; }}
+    .countdown {{ color: #666; font-size: .8rem; margin-top: 1.5rem; }}
+  </style>
+  <script>
+    // Track elapsed time in localStorage so we can show a real error after a timeout.
+    const key = 'sus-starting-{team}-{app_slug}';
+    const start = parseInt(localStorage.getItem(key) || '0');
+    const now = Date.now();
+    if (!start) {{ localStorage.setItem(key, now.toString()); }}
+    const elapsed = start ? Math.floor((now - start) / 1000) : 0;
+    if (elapsed > 300) {{ // 5 minute timeout
+      localStorage.removeItem(key);
+      document.title = 'Failed to start';
+      window.stop();
+      document.addEventListener('DOMContentLoaded', () => {{
+        document.body.innerHTML = `
+          <div style="text-align:center; max-width: 500px; padding: 2rem;">
+            <div style="font-size:3rem; margin-bottom:1rem;">😞</div>
+            <h1>The app didn't start in time</h1>
+            <p>We waited 5 minutes for <span class="app-name">{team}/{app_slug}</span> to start, but it didn't respond.</p>
+            <p>This usually means the app has an error or is missing dependencies.</p>
+            <p style="margin-top:1.5rem;">
+              <a href="/build/{team}/{app_slug}" style="color:#4a7c8e;">Open in build mode to investigate</a> ·
+              <a href="/" style="color:#888;">Back to catalog</a>
+            </p>
+          </div>`;
+      }});
+    }} else {{
+      window.addEventListener('load', () => {{
+        document.getElementById('elapsed').textContent = elapsed + 's';
+      }});
+    }}
+  </script>
+</head>
+<body>
+  <div class="spinner"></div>
+  <h1>Starting <span class="app-name">{team}/{app_slug}</span>...</h1>
+  <p>The app is being prepared. This usually takes 30-90 seconds.</p>
+  <p class="countdown">Waiting <span id="elapsed">0s</span> · Auto-refreshing every 5 seconds</p>
+</body>
+</html>""")
