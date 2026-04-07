@@ -29,9 +29,9 @@ if [ -z "$REPO_URL" ]; then
     exit 1
 fi
 
-# Clone the repo to a separate directory (avoid baked-in /repo/claude conflicts).
-APP_ROOT="/srv/app"
-mkdir -p "$APP_ROOT"
+# Clone the repo to a writable location (sus user has write access to home).
+APP_ROOT="/home/sus/app"
+rm -rf "$APP_ROOT"
 git clone --depth 1 "$REPO_URL" "$APP_ROOT"
 
 APP_DIR="${APP_ROOT}/${APP_TEAM}/${APP_SLUG}"
