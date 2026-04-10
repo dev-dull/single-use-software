@@ -103,7 +103,33 @@ _autosave_loop() {
     done
 }
 
+# --- Server-side activity heartbeat ---------------------------------------
+# Detects file changes and pings the landing page so the pod isn't reaped
+# while Claude is actively working (even if the user's tab is backgrounded).
+_activity_loop() {
+    local last_mtime=""
+    while true; do
+        sleep 60
+        # Get the most recent mtime of any file in the app dir.
+        local cur_mtime
+        cur_mtime=$(find "$APP_DIR" -type f -not -path '*/.git/*' -not -path '*/__pycache__/*' -printf '%T@\n' 2>/dev/null | sort -n | tail -1)
+        # Also check for any uncommitted changes (Claude actively writing).
+        local has_changes=""
+        if [ -d /repo/.git ]; then
+            has_changes=$(cd /repo && git status --porcelain 2>/dev/null | head -1)
+        fi
+        if [ "$cur_mtime" != "$last_mtime" ] || [ -n "$has_changes" ]; then
+            last_mtime="$cur_mtime"
+            # Files changed — ping the landing page heartbeat endpoint.
+            if [ -n "${SUS_API_URL:-}" ] && [ -n "${APP_TEAM:-}" ] && [ -n "${APP_SLUG:-}" ]; then
+                curl -s -o /dev/null -X POST "${SUS_API_URL}/build/${APP_TEAM}/${APP_SLUG}/heartbeat" 2>/dev/null || true
+            fi
+        fi
+    done
+}
+
 _autosave_loop &
+_activity_loop &
 
 # --- Runner: auto-start app on port 3000 ---------------------------------
 # Watches the app directory for servable content.

@@ -15,7 +15,7 @@ async def start_cleanup_loop(
     pod_manager: BuildPodManager,
     session_store: SessionStore,
     interval_minutes: int = 5,
-    idle_timeout_minutes: int = 10,
+    idle_timeout_minutes: int = 20,
 ) -> None:
     """Run an infinite loop that cleans up idle pods and their sessions.
 
