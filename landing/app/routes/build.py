@@ -266,7 +266,7 @@ async def build_preview_hash(
     return JSONResponse({"hash": ""})
 
 
-@router.get("/{team}/{app_slug}/preview/{path:path}")
+@router.api_route("/{team}/{app_slug}/preview/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
 async def build_preview(
     request: Request,
     team: str,

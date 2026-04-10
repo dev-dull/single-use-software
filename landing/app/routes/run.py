@@ -70,7 +70,7 @@ async def run_ui(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/{team}/{app_slug}/proxy/{path:path}")
+@router.api_route("/{team}/{app_slug}/proxy/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
 async def run_proxy(
     request: Request,
     team: str,
