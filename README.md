@@ -12,6 +12,14 @@ No coding required. Describe your app in plain language, watch it appear in a li
 
 ---
 
+## Demo
+
+[![Watch the demo](https://img.youtube.com/vi/LAcHn5zU8Vk/maxresdefault.jpg)](https://youtu.be/LAcHn5zU8Vk)
+
+[Watch on YouTube →](https://youtu.be/LAcHn5zU8Vk)
+
+---
+
 ## Quick Start
 
 ### Prerequisites
