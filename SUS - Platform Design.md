@@ -202,13 +202,37 @@ Skills are plain Markdown files. Claude is instructed to discover and apply rele
 
 SUS uses a pluggable identity provider interface. By default, it runs in **single-user mode** — no login required, and the local operator is treated as the owner with full access.
 
-To add authentication later, implement the `IdentityProvider` interface, which returns a user identity (ID, display name, and optional group memberships) from an incoming request. Example providers that could be added:
+Earlier iterations assumed a Google Cloud Identity-Aware Proxy (IAP) in front of SUS. That doesn't fit a self-hosted / homelab audience, so the recommended strategy is **reverse-proxy forward-auth** running entirely in-cluster.
 
-* **Reverse proxy headers** — trust `X-Forwarded-User` / `X-Forwarded-Email` from an upstream proxy (Authelia, Authentik, Caddy, etc.)
-* **Local user database** — username/password stored in SQLite, session cookies
-* **OIDC / OAuth2** — delegate to a local or external identity provider (Keycloak, Dex, etc.)
+#### Recommended default: reverse-proxy forward-auth
 
-The identity provider is configured via a single setting in the SUS config file, making it easy to swap without changing application code.
+Place a forward-auth gateway behind the Kubernetes Ingress and have it authenticate every request before it reaches the landing pod. **Authelia** is the reference implementation for a homelabber — lean, single-purpose, small attack surface — with **Authentik** as the heavier alternative when a full IdP (OIDC/SAML/LDAP) is already wanted.
+
+This is the only approach that satisfies all of SUS's constraints at once:
+
+* **No cloud dependency** — runs on the operator's own cluster.
+* **WebSocket-safe** — the auth check happens once at the HTTP layer, *before* the ttyd WebSocket upgrade, so the long-lived terminal socket is never re-challenged or broken. Traefik (the k3s/k3d default) passes upgrade headers transparently; nginx-ingress needs `proxy-read-timeout`/`proxy-send-timeout` raised to ~3600s (already documented for ttyd in the README).
+* **Gate *and* identity** — forward-auth both keeps strangers out and forwards the authenticated user to the backend as trusted headers (`Remote-User`, `Remote-Email`, `Remote-Groups`, `Remote-Name` for Authelia; `X-authentik-*` for Authentik). That is exactly what SUS needs to attribute build sessions to a user and eventually isolate pods/branches per user.
+
+The identity provider is configured via a single setting in the SUS config file, making it easy to swap without changing application code. Providers:
+
+* **Trusted-header (recommended)** — read `Remote-User` / `Remote-Email` (or `X-Forwarded-User` / `X-Forwarded-Email`) from the forward-auth proxy. See the hardening rules below before trusting these.
+* **Local user database** — username/password stored in SQLite, session cookies. The no-proxy fallback for a single operator who wants named login without running an auth stack.
+* **OIDC / OAuth2** — delegate to a self-hosted IdP (Keycloak, Authentik, Pocket ID, Dex). Heavier; use when an IdP already exists.
+
+**Simplest LAN-only option:** don't expose SUS publicly at all — bind it to the LAN and reach it over Tailscale/WireGuard. This is a network-layer gate (need "keep strangers out") but not per-user identity; pair it with the local-database provider if named users are still wanted. It composes cleanly with forward-auth added later.
+
+#### Footgun: trusted headers require a locked-down backend
+
+Trusted-header auth is only as strong as the guarantee that the headers came from the proxy and nothing else. The backend sees the *proxy's* source IP, so it must trust identity headers **only** from the specific proxy address — trusting a whole Pod CIDR or flat network is exploitable: any compromised or malicious pod in that network can forge `Remote-User: admin` and bypass authentication entirely.
+
+For SUS this is not hypothetical. Build and run pods already call the landing service at `SUS_API_URL`, and the apps running in them are semi-untrusted (LLM-generated). If SUS naively trusts a `Remote-User` header, a built app can send `Remote-User: admin` to `SUS_API_URL` and impersonate the operator — the same app→platform boundary tracked in the platform-API hardening issues (see #79 unauthenticated `/api/secrets`, #80 unvalidated `pod_ip` proxying). Forward-auth therefore **must compose with network isolation, not replace it.** Three requirements hold together:
+
+1. **NetworkPolicy** restricting the landing pod's authenticated port so it is reachable only from the ingress controller — never from the workloads namespace where apps run.
+2. **SUS strips/ignores inbound identity headers** from any source except the configured trusted proxy IP; a request that didn't traverse the proxy is treated as anonymous.
+3. **The proxy overwrites (not appends)** identity headers on every request, so a client-supplied copy can't survive.
+
+Additionally, keep the ingress patched (e.g. Traefik ≥ v2.11.43 / v3.6.14 for the `X-Forwarded-Prefix` ForwardAuth fix) and strip client-supplied `X-Forwarded-*` at the edge.
 
 ### **Policy Model**
 
