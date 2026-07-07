@@ -35,6 +35,10 @@ buildPod:
     repository: ghcr.io/dev-dull/sus-build
     tag: latest
     pullPolicy: Always
+  # -- Claude model for build sessions. Aliases like "sonnet", "opus", and
+  # "haiku" resolve to the latest model in that family; a full model ID
+  # (e.g. "claude-sonnet-5") pins a specific version.
+  claudeModel: sonnet
   ports:
     terminal: 8080
     preview: 3000

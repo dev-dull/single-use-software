@@ -34,6 +34,8 @@ spec:
               value: "{{ .Values.buildPod.image.repository }}:{{ .Values.buildPod.image.tag }}"
             - name: SUS_GIT_REPO_URL
               value: {{ .Values.gitRepo.url | quote }}
+            - name: SUS_CLAUDE_MODEL
+              value: {{ .Values.buildPod.claudeModel | quote }}
             - name: SUS_REPO_CLONE_DIR
               value: /data/repo
           livenessProbe:

@@ -177,7 +177,7 @@ secrets = httpx.get(f"{API}/api/secrets").json()
 ## Skills
 
 Load relevant guidance skills from `/repo/claude/skills/` at session start.
-When working on an app in `apps/{team}/`, check if `claude/skills/{team}.md` exists and load it.
+When working on an app in `{team}/`, check if `claude/skills/{team}.md` exists and load it.
 Skills are read-only reference material — do not modify them.
 
 ---
@@ -185,8 +185,8 @@ Skills are read-only reference material — do not modify them.
 ## Working Directory
 
 You are working inside a monorepo. Your current directory is the app's directory:
-`/repo/apps/{team}/{app-slug}/`
+`/repo/{team}/{app-slug}/`
 
-This directory contains the app's files: `sus.json`, `main.py`, `requirements.txt`, `index.html`, etc. All your file operations happen here. You do NOT need to create subdirectories under `apps/` — you're already in the right place.
+This directory contains the app's files: `sus.json`, `main.py`, `requirements.txt`, `index.html`, etc. All your file operations happen here. You are already in the right place — do NOT create a subdirectory (e.g. an `apps/` folder) or move the app elsewhere.
 
 The full monorepo is at `/repo` but you should only modify files in your app directory.

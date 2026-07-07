@@ -126,6 +126,7 @@ SUS can be configured two ways:
 | App repo URL | `/setup` | `--set gitRepo.url=...` |
 | Anthropic API key | `/setup` | K8s secret `sus-anthropic-api-key` |
 | Git access token | `/setup` | K8s secret `sus-git-token` |
+| Claude model for build sessions | — | `--set buildPod.claudeModel=sonnet` (aliases like `sonnet`/`opus`/`haiku` track the latest model; a full ID pins one) |
 | Build pod resources | — | `buildPod.resources` in `values.yaml` |
 | Landing page resources | — | `landing.resources` in `values.yaml` |
 

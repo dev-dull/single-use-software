@@ -12,6 +12,7 @@ set -euo pipefail
 #   APP_TEAM        — the team this app belongs to
 #   APP_SLUG        — the app's short name
 #   ANTHROPIC_API_KEY — API key for Claude Code
+#   CLAUDE_MODEL    — Claude model for the session (default: sonnet)
 # ---------------------------------------------------------------------------
 
 # --- Git configuration ----------------------------------------------------
@@ -219,5 +220,41 @@ export DISABLE_AUTOUPDATER=1
 mkdir -p "$APP_DIR"
 cd "$APP_DIR"
 
+# Pre-trust the exact cwd in ~/.claude.json. The Claude Code trust dialog is
+# keyed to the exact working directory, so the baked-in /repo entry doesn't
+# cover /repo/{team}/{app-slug}. Also pre-ack the bypass-mode warning and
+# stamp the API key as approved. Speculative keys (vary by version) are
+# harmless if Claude ignores them.
+export APP_DIR
+python3 - <<'PYEOF'
+import json, os
+path = "/home/sus/.claude.json"
+with open(path) as f:
+    data = json.load(f)
+
+app_dir = os.environ["APP_DIR"]
+trust = {
+    "allowedTools": [],
+    "hasTrustDialogAccepted": True,
+    "hasCompletedProjectOnboarding": True,
+    "projectOnboardingSeenCount": 100,
+    "hasAcceptedBypassPermissionsMode": True,
+    "bypassPermissionsModeAccepted": True,
+}
+projects = data.setdefault("projects", {})
+for p in (app_dir, os.path.dirname(app_dir), "/repo"):
+    projects[p] = {**projects.get(p, {}), **trust}
+
+api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+if api_key:
+    data["customApiKeyResponses"] = {"approved": [api_key[-20:]], "rejected": []}
+
+data["hasAcceptedBypassPermissionsMode"] = True
+data["bypassPermissionsModeAccepted"] = True
+
+with open(path, "w") as f:
+    json.dump(data, f)
+PYEOF
+
 exec ttyd --port 8080 --writable --base-path / \
-    bash -c "cd '$APP_DIR' && exec claude --dangerously-skip-permissions --model sonnet"
+    bash -c "cd '$APP_DIR' && exec claude --dangerously-skip-permissions --model '${CLAUDE_MODEL:-sonnet}'"

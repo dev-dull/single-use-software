@@ -187,7 +187,7 @@ class GitWorkflowManager:
                 "bash", "-c",
                 "cd /repo && git add -A && "
                 "git diff --cached --quiet || "
-                "git commit -m 'publish: update ${APP_TEAM}/${APP_SLUG}'"
+                'git commit -m "publish: update ${APP_TEAM}/${APP_SLUG}"'
             ])
 
             # Get the commit hash.
