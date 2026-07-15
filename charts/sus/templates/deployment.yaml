@@ -38,6 +38,10 @@ spec:
               value: {{ .Values.buildPod.claudeModel | quote }}
             - name: SUS_REPO_CLONE_DIR
               value: /data/repo
+            {{- if .Values.auth.enabled }}
+            - name: SUS_CONFIG_PATH
+              value: /config/sus_config.json
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz
@@ -55,6 +59,16 @@ spec:
           volumeMounts:
             - name: repo-data
               mountPath: /data
+            {{- if .Values.auth.enabled }}
+            - name: sus-config
+              mountPath: /config
+              readOnly: true
+            {{- end }}
       volumes:
         - name: repo-data
           emptyDir: {}
+        {{- if .Values.auth.enabled }}
+        - name: sus-config
+          configMap:
+            name: {{ include "sus.fullname" . }}-landing-config
+        {{- end }}

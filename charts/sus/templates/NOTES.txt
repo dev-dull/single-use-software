@@ -11,3 +11,26 @@ To access the landing page locally, run:
   kubectl port-forward -n {{ .Values.namespaces.platform }} svc/{{ include "sus.fullname" . }}-landing {{ .Values.service.port }}:{{ .Values.service.port }}
 
 Then open http://localhost:{{ .Values.service.port }} in your browser.
+{{- if .Values.auth.enabled }}
+
+Authentication (Authelia) is ENABLED.
+  - SUS UI:        http://{{ .Values.ingress.host }}
+  - Login portal:  http://auth.{{ .Values.auth.domain }}
+  Both hostnames must resolve to your ingress controller (DNS or /etc/hosts).
+
+  {{- if not .Values.ingress.enabled }}
+
+  WARNING: auth.enabled=true but ingress.enabled=false. Forward-auth runs at the
+  ingress, so you must also enable the ingress for authentication to take effect.
+  {{- end }}
+  {{- if not .Values.auth.trustedProxies }}
+
+  WARNING: auth.trustedProxies is empty — the landing app will trust identity
+  headers from ANY source. Set it to your ingress controller's pod CIDR.
+  {{- end }}
+  {{- if not .Values.auth.authelia.secrets.existingSecret }}
+
+  WARNING: using placeholder Authelia secrets and the sample admin user. Override
+  auth.authelia.secrets.* and auth.authelia.users before exposing SUS.
+  {{- end }}
+{{- end }}

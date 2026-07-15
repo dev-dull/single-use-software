@@ -1,0 +1,46 @@
+{{- if .Values.auth.enabled }}
+# Restrict who can reach the landing pod's HTTP port. Trusted-header identity
+# is only safe if forged headers can't arrive from arbitrary pods (design doc
+# "Footgun: trusted headers require a locked-down backend", requirement #1).
+#
+# Allowed sources:
+#   - the ingress controller namespace (authenticated UI traffic via Authelia)
+#   - the workloads namespace (build/run pods calling the platform API at
+#     SUS_API_URL — legitimately needed today)
+#
+# Residual risk: because workload pods retain access on the same port, an
+# in-cluster app pod can still reach the API surface directly. Closing that is
+# tracked separately (authenticate /api/secrets — #79; validate pod_ip — #80).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "sus.fullname" . }}-landing
+  namespace: {{ .Values.namespaces.platform }}
+  labels:
+    {{- include "sus.labels" . | nindent 4 }}
+    app.kubernetes.io/component: landing
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "sus.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: landing
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # Ingress controller (Traefik/nginx) — the authenticated UI path.
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.auth.ingressNamespace }}
+        # Workload pods calling the platform API (SUS_API_URL).
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.namespaces.workloads }}
+        # Same-namespace callers (probes, in-platform components).
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.namespaces.platform }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.landing.port }}
+{{- end }}

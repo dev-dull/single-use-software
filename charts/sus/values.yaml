@@ -71,6 +71,61 @@ ingress:
   #    hosts:
   #      - sus.local
 
+# -- Authentication (forward-auth). Disabled by default: SUS runs single-user
+# with no login. When enabled, a bundled Authelia gates the browser-facing UI
+# and the landing pod switches to trusted-header (proxy-header) identity.
+# NOTE: requires ingress.enabled=true, and only Traefik is wired out of the box.
+auth:
+  enabled: false
+  # -- Base domain. The SUS app is served at ingress.host (which MUST be this
+  # domain or a subdomain of it) and the Authelia portal at auth.<domain>, so a
+  # single session cookie scoped to <domain> covers both.
+  domain: sus.local
+  # -- Source IP/CIDR(s) of the ingress controller. Only identity headers from
+  # these peers are trusted by the landing app (everything else is anonymous).
+  # For k3s/k3d Traefik this is the cluster pod CIDR, e.g. ["10.42.0.0/16"].
+  # Leave empty ONLY for testing — an empty list trusts headers from any source.
+  trustedProxies: []
+  # -- Namespace the ingress controller runs in. A NetworkPolicy restricts the
+  # landing pod so identity-bearing UI traffic can only arrive from here.
+  # k3s/k3d Traefik = kube-system; nginx-ingress = ingress-nginx.
+  ingressNamespace: kube-system
+  authelia:
+    image:
+      repository: authelia/authelia
+      # Pinned minor tag — Authelia's config schema is version-sensitive.
+      tag: "4.38"
+      pullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 250m
+        memory: 192Mi
+    # -- Reference file-based users for the homelab quickstart. Each entry needs
+    # an argon2id `password` hash (generate with:
+    #   docker run authelia/authelia:4.38 authelia crypto hash generate argon2 --password '<pw>')
+    # Replace this before exposing SUS to anyone.
+    users:
+      - username: admin
+        displayname: "SUS Admin"
+        # Placeholder hash for the password "authelia" — CHANGE THIS.
+        password: "$argon2id$v=19$m=65536,t=3,p=4$c3VzcGxhY2Vob2xkZXI$Zt1sJ8Xh0m0Wd1oQ9m0h9m0h9m0h9m0h9m0h9m0h9m0"
+        email: admin@example.com
+        groups:
+          - admins
+          - default
+    secrets:
+      # -- If set, the chart will NOT render its own Secret; provide a Secret
+      # with keys: session, storage-encryption, jwt. Recommended for real use.
+      existingSecret: ""
+      # -- Placeholder secrets used only when existingSecret is empty. OVERRIDE
+      # these (e.g. --set auth.authelia.secrets.session=$(openssl rand -hex 32)).
+      session: "PLACEHOLDER-CHANGE-ME-session-secret"
+      storageEncryption: "PLACEHOLDER-CHANGE-ME-storage-encryption-key"
+      jwt: "PLACEHOLDER-CHANGE-ME-jwt-secret"
+
 # -- Git repository for the app monorepo
 gitRepo:
   # -- URL of the monorepo (HTTPS or SSH)

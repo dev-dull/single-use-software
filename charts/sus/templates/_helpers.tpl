@@ -45,3 +45,24 @@ Selector labels.
 app.kubernetes.io/name: {{ include "sus.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
+
+{{/*
+Authelia resource name.
+*/}}
+{{- define "sus.authelia.fullname" -}}
+{{- printf "%s-authelia" (include "sus.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Traefik forward-auth middleware name.
+*/}}
+{{- define "sus.forwardAuth.middlewareName" -}}
+{{- printf "%s-forwardauth" (include "sus.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Traefik router.middlewares annotation reference (<namespace>-<name>@kubernetescrd).
+*/}}
+{{- define "sus.forwardAuth.middlewareRef" -}}
+{{- printf "%s-%s@kubernetescrd" .Values.namespaces.platform (include "sus.forwardAuth.middlewareName" .) }}
+{{- end }}

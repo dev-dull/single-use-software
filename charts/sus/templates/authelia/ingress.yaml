@@ -1,0 +1,31 @@
+{{- if and .Values.auth.enabled .Values.ingress.enabled }}
+# Exposes the Authelia login portal at auth.<domain> so browsers can complete
+# the login flow that the forward-auth middleware redirects them to.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "sus.authelia.fullname" . }}
+  namespace: {{ .Values.namespaces.platform }}
+  labels:
+    {{- include "sus.labels" . | nindent 4 }}
+    app.kubernetes.io/component: authelia
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  rules:
+    - host: {{ printf "auth.%s" .Values.auth.domain | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "sus.authelia.fullname" . }}
+                port:
+                  number: 9091
+{{- end }}
