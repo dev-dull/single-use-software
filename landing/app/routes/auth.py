@@ -14,7 +14,7 @@ router = APIRouter(prefix="/auth")
 
 def _get_provider(request: Request) -> LocalDatabaseProvider | None:
     """Return the identity provider only if it is a LocalDatabaseProvider."""
-    from ..main import get_identity_provider
+    from ..deps import get_identity_provider
 
     provider = get_identity_provider()
     if isinstance(provider, LocalDatabaseProvider):
@@ -77,7 +77,7 @@ async def logout(request: Request) -> JSONResponse:
 @router.get("/me")
 async def me(request: Request) -> JSONResponse:
     """Return the current user's identity."""
-    from ..main import get_identity_provider
+    from ..deps import get_identity_provider
 
     provider = get_identity_provider()
     identity = await provider.resolve(request)

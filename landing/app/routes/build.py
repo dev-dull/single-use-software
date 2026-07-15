@@ -7,11 +7,13 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Query, Request, WebSocket
+from fastapi import APIRouter, Depends, Query, Request, WebSocket
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
+from ..deps import resolve_identity
 from ..git_workflow import GitWorkflowManager
+from ..identity import UserIdentity
 from ..pods import BuildPodManager
 from ..proxy import http_proxy, ws_proxy
 from ..sessions import SessionStore
@@ -57,6 +59,7 @@ async def build_ui(
     pod_ip: str = Query("", alias="pod_ip"),
     app_name: str = Query("", alias="app_name"),
     app_description: str = Query("", alias="app_description"),
+    identity: UserIdentity = Depends(resolve_identity),
 ) -> HTMLResponse:
     """Render the build-mode UI with terminal and preview panes.
 
@@ -66,7 +69,7 @@ async def build_ui(
     if not pod_ip:
         try:
             wf = _get_workflow()
-            user_id = "anonymous"
+            user_id = identity.id
             info = wf.start_session(
                 user_id=user_id, team=team, app_slug=app_slug,
                 app_name=app_name, app_description=app_description,
@@ -106,12 +109,12 @@ async def build_heartbeat(
     team: str,
     app_slug: str,
     pod_ip: str = Query("", alias="pod_ip"),
+    identity: UserIdentity = Depends(resolve_identity),
 ) -> JSONResponse:
     """Heartbeat endpoint to keep the build pod alive."""
     try:
         wf = _get_workflow()
-        # TODO: replace hardcoded user_id with real auth
-        user_id = "anonymous"
+        user_id = identity.id
         session = wf._sessions.get(user_id, app_slug)
         if session:
             wf._pods.heartbeat(session["pod_name"])
@@ -126,12 +129,12 @@ async def build_save(
     team: str,
     app_slug: str,
     pod_ip: str = Query("", alias="pod_ip"),
+    identity: UserIdentity = Depends(resolve_identity),
 ) -> JSONResponse:
     """Trigger a named save (git commit) in the build pod."""
     try:
         wf = _get_workflow()
-        # TODO: replace hardcoded user_id with real auth
-        user_id = "anonymous"
+        user_id = identity.id
         result = wf.save(user_id=user_id, team=team, app_slug=app_slug)
         return JSONResponse(result)
     except Exception:
@@ -144,12 +147,12 @@ async def build_publish(
     team: str,
     app_slug: str,
     pod_ip: str = Query("", alias="pod_ip"),
+    identity: UserIdentity = Depends(resolve_identity),
 ) -> JSONResponse:
     """Trigger a publish (PR creation) in the build pod."""
     try:
         wf = _get_workflow()
-        # TODO: replace hardcoded user_id with real auth
-        user_id = "anonymous"
+        user_id = identity.id
         result = wf.publish(user_id=user_id, team=team, app_slug=app_slug)
         return JSONResponse(result)
     except Exception:
@@ -161,12 +164,12 @@ async def build_publish(
 async def build_stop(
     team: str,
     app_slug: str,
+    identity: UserIdentity = Depends(resolve_identity),
 ) -> JSONResponse:
     """End the build session — delete the pod and clean up."""
     try:
         wf = _get_workflow()
-        # TODO: replace hardcoded user_id with real auth
-        user_id = "anonymous"
+        user_id = identity.id
         wf.end_session(user_id=user_id, team=team, app_slug=app_slug)
         return JSONResponse({"status": "stopped"})
     except Exception:
