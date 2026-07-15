@@ -24,8 +24,11 @@ spec:
         - name: authelia
           image: "{{ .Values.auth.authelia.image.repository }}:{{ .Values.auth.authelia.image.tag }}"
           imagePullPolicy: {{ .Values.auth.authelia.image.pullPolicy }}
+          # The image entrypoint only recognises "--config" as a separate token
+          # (it execs the args verbatim otherwise), so keep flag and path split.
           args:
-            - --config=/config/configuration.yml
+            - --config
+            - /config/configuration.yml
           ports:
             - name: http
               containerPort: 9091
