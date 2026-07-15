@@ -1,6 +1,6 @@
 {{- if and .Values.auth.enabled .Values.ingress.enabled }}
 # Exposes the Authelia login portal at auth.<domain> so browsers can complete
-# the login flow that the forward-auth middleware redirects them to.
+# the login flow that your ingress controller's forward-auth rule redirects to.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

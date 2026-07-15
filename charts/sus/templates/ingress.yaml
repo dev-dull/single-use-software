@@ -6,15 +6,9 @@ metadata:
   namespace: {{ .Values.namespaces.platform }}
   labels:
     {{- include "sus.labels" . | nindent 4 }}
-  {{- if or .Values.ingress.annotations .Values.auth.enabled }}
+  {{- with .Values.ingress.annotations }}
   annotations:
-    {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
-    {{- end }}
-    {{- if .Values.auth.enabled }}
-    # Gate the SUS UI behind the bundled Authelia forward-auth middleware.
-    traefik.ingress.kubernetes.io/router.middlewares: {{ include "sus.forwardAuth.middlewareRef" . }}
-    {{- end }}
   {{- end }}
 spec:
   {{- if .Values.ingress.className }}

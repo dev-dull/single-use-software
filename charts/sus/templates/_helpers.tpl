@@ -54,15 +54,9 @@ Authelia resource name.
 {{- end }}
 
 {{/*
-Traefik forward-auth middleware name.
+In-cluster URL of the Authelia service (used by forward-auth wiring the operator
+adds at their own ingress controller).
 */}}
-{{- define "sus.forwardAuth.middlewareName" -}}
-{{- printf "%s-forwardauth" (include "sus.fullname" .) | trunc 63 | trimSuffix "-" }}
-{{- end }}
-
-{{/*
-Traefik router.middlewares annotation reference (<namespace>-<name>@kubernetescrd).
-*/}}
-{{- define "sus.forwardAuth.middlewareRef" -}}
-{{- printf "%s-%s@kubernetescrd" .Values.namespaces.platform (include "sus.forwardAuth.middlewareName" .) }}
+{{- define "sus.authelia.serviceUrl" -}}
+{{- printf "http://%s.%s.svc.cluster.local:9091" (include "sus.authelia.fullname" .) .Values.namespaces.platform }}
 {{- end }}

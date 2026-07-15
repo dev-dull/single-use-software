@@ -206,7 +206,7 @@ Earlier iterations assumed a Google Cloud Identity-Aware Proxy (IAP) in front of
 
 #### Recommended default: reverse-proxy forward-auth
 
-Place a forward-auth gateway behind the Kubernetes Ingress and have it authenticate every request before it reaches the landing pod. **Authelia** is the reference implementation for a homelabber — mature, single-purpose, small attack surface, and easy to stand up with a file-based user store and its own login portal. SUS ships a bundled, opt-in Authelia (`--set auth.enabled=true`) as the turnkey path; a Traefik forward-auth middleware gates the SUS UI and Authelia returns the identity as `Remote-*` headers.
+Place a forward-auth gateway behind the Kubernetes Ingress and have it authenticate every request before it reaches the landing pod. **Authelia** is the reference implementation for a homelabber — mature, single-purpose, small attack surface, and easy to stand up with a file-based user store and its own login portal. SUS ships a bundled, opt-in Authelia (`--set auth.enabled=true`) and switches the landing pod to trusted-header identity. The chart stays **ingress-agnostic**: it does not wire the forward-auth rule itself, because that mechanism is controller-specific (Traefik `Middleware` CRD, nginx `auth-url` annotations, etc.) and there is no portable Kubernetes API for it. The operator adds the rule for their controller (Traefik and nginx snippets are in the README); Authelia then returns the identity as `Remote-*` headers.
 
 Alternatives that drop into the same forward-auth slot: **tinyauth** (even lighter, newer project) for minimal setups; **oauth2-proxy** as a thin connector when the operator already runs an OIDC provider; and **Authentik** as a full IdP when SAML, LDAP, or multiple upstream providers are needed.
 
@@ -232,7 +232,7 @@ For SUS this is not hypothetical. Build and run pods already call the landing se
 
 1. **NetworkPolicy** on the landing pod's HTTP port (`charts/sus/templates/networkpolicy.yaml`). It admits the ingress controller (authenticated UI traffic) plus the workloads and platform namespaces. The workloads allowance is deliberate — build/run pods legitimately call the platform API on that port — which means an in-cluster app pod can still reach the API surface directly. Closing that residual vector is #79 (authenticate the API) / #80 (validate `pod_ip`), not this control.
 2. **`ProxyHeaderProvider` ignores identity headers unless the request's raw socket peer is within `identity_options.trusted_proxies`** (`landing/app/identity.py`); anything else resolves to an anonymous guest. The peer IP is the real socket address, not a forwardable header — uvicorn must not be run with a wildcard `--forwarded-allow-ips`.
-3. **The Traefik forward-auth middleware overwrites (not appends)** the `Remote-*` headers from Authelia's response on every request, so a client-supplied copy can't survive (`charts/sus/templates/authelia/middleware.yaml`).
+3. **The operator's forward-auth rule must overwrite (not append)** the `Remote-*` headers from Authelia's response on every request, so a client-supplied copy can't survive. Both documented paths do this — Traefik's `authResponseHeaders` and nginx's `auth-response-headers` replace rather than merge — but a hand-rolled proxy config must preserve that property.
 
 Additionally, keep the ingress patched (e.g. Traefik ≥ v2.11.43 / v3.6.14 for the `X-Forwarded-Prefix` ForwardAuth fix) and strip client-supplied `X-Forwarded-*` at the edge.
 

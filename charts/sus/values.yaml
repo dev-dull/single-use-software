@@ -72,21 +72,26 @@ ingress:
   #      - sus.local
 
 # -- Authentication (forward-auth). Disabled by default: SUS runs single-user
-# with no login. When enabled, a bundled Authelia gates the browser-facing UI
-# and the landing pod switches to trusted-header (proxy-header) identity.
-# NOTE: requires ingress.enabled=true, and only Traefik is wired out of the box.
+# with no login. When enabled, a bundled Authelia is deployed and the landing pod
+# switches to trusted-header (proxy-header) identity.
+#
+# The chart is INGRESS-AGNOSTIC: it does not wire your ingress controller, because
+# forward-auth has no portable Kubernetes API (Traefik uses a Middleware CRD,
+# nginx uses auth-url annotations, etc.). You add the forward-auth rule for your
+# controller — see the README "Authentication (Authelia)" section. Until then the
+# landing app sees no identity and treats every request as an anonymous guest.
 auth:
   enabled: false
-  # -- Base domain. The SUS app is served at ingress.host (which MUST be this
-  # domain or a subdomain of it) and the Authelia portal at auth.<domain>, so a
-  # single session cookie scoped to <domain> covers both.
+  # -- Base domain. Serve the SUS app at ingress.host (which MUST be this domain
+  # or a subdomain of it) and the Authelia portal at auth.<domain>, so a single
+  # session cookie scoped to <domain> covers both.
   domain: sus.local
-  # -- Source IP/CIDR(s) of the ingress controller. Only identity headers from
-  # these peers are trusted by the landing app (everything else is anonymous).
-  # For k3s/k3d Traefik this is the cluster pod CIDR, e.g. ["10.42.0.0/16"].
+  # -- Source IP/CIDR(s) of your ingress controller's pods. Only identity headers
+  # from these peers are trusted by the landing app (everything else is anonymous).
+  # For k3s/k3d this is typically the cluster pod CIDR, e.g. ["10.42.0.0/16"].
   # Leave empty ONLY for testing — an empty list trusts headers from any source.
   trustedProxies: []
-  # -- Namespace the ingress controller runs in. A NetworkPolicy restricts the
+  # -- Namespace your ingress controller runs in. A NetworkPolicy restricts the
   # landing pod so identity-bearing UI traffic can only arrive from here.
   # k3s/k3d Traefik = kube-system; nginx-ingress = ingress-nginx.
   ingressNamespace: kube-system

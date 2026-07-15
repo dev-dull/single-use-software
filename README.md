@@ -163,7 +163,7 @@ For Traefik (common in k3s/k3d), WebSocket support is enabled by default — no 
 
 ### Authentication (Authelia)
 
-By default SUS runs single-user with no login. To put real authentication in front of the UI, enable the bundled **Authelia** forward-auth (Traefik only, requires the ingress):
+By default SUS runs single-user with no login. Enabling `auth.enabled` deploys a bundled **Authelia** and switches the landing pod to trusted-header identity so build sessions are attributed to the logged-in user:
 
 ```bash
 helm upgrade sus ./charts/sus \
@@ -171,18 +171,54 @@ helm upgrade sus ./charts/sus \
   --set ingress.host=sus.example.com \
   --set auth.enabled=true \
   --set auth.domain=example.com \
+  --set auth.ingressNamespace=<your ingress controller namespace> \
   --set 'auth.trustedProxies={10.42.0.0/16}'
 ```
 
-This deploys Authelia, gates the SUS UI behind it, and switches the landing pod to trusted-header identity so build sessions are attributed to the logged-in user.
+**The chart does not wire your ingress controller.** Forward-auth has no portable Kubernetes API — each controller does it differently — so SUS stays ingress-agnostic and leaves that one step to you. Until you add a forward-auth rule, the landing app sees no identity and treats every request as an anonymous guest.
 
 **Required before exposing SUS:**
 
 - **DNS** — `sus.example.com` (the app) and `auth.example.com` (the login portal) must both resolve to your ingress. `ingress.host` must be `auth.domain` or a subdomain of it so one session cookie covers both.
-- **`auth.trustedProxies`** — the ingress controller's pod CIDR (k3s/k3d Traefik: `10.42.0.0/16`). The landing app only trusts identity headers from these peers; an empty list trusts *any* source and is for testing only.
+- **`auth.trustedProxies`** — your ingress controller's pod CIDR (k3s/k3d: `10.42.0.0/16`). The landing app only trusts identity headers from these peers; an empty list trusts *any* source and is for testing only.
 - **Secrets & users** — override the placeholders. Provide your own secret via `--set auth.authelia.secrets.existingSecret=<name>` (keys `session`, `storage-encryption`, `jwt`), and replace the sample `auth.authelia.users` (generate an argon2id hash with `docker run authelia/authelia:4.38 authelia crypto hash generate argon2 --password '<pw>'`).
 
-Prefer a different provider (tinyauth, oauth2-proxy, Authentik)? The landing app consumes standard `Remote-*`/`X-Forwarded-*` headers, so any forward-auth proxy works — point its Traefik middleware at the SUS ingress and set `auth.trustedProxies` accordingly. See [`SUS - Platform Design.md`](SUS%20-%20Platform%20Design.md) for the trusted-header hardening model.
+#### Wiring forward-auth at your ingress
+
+The Authelia service is reachable in-cluster at `http://sus-authelia.sus.svc.cluster.local:9091`. Point your controller's forward-auth at it and forward the `Remote-User`, `Remote-Groups`, `Remote-Name`, and `Remote-Email` response headers to the SUS UI.
+
+**Traefik** — create a `Middleware` and attach it to the SUS ingress route:
+
+```yaml
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: sus-forwardauth
+  namespace: sus
+spec:
+  forwardAuth:
+    address: http://sus-authelia.sus.svc.cluster.local:9091/api/authz/forward-auth
+    trustForwardHeader: true
+    authResponseHeaders:
+      - Remote-User
+      - Remote-Groups
+      - Remote-Name
+      - Remote-Email
+```
+
+Then add to the SUS ingress: `--set ingress.annotations.traefik\.ingress\.kubernetes\.io/router\.middlewares=sus-sus-forwardauth@kubernetescrd`.
+
+**nginx-ingress** — add these annotations to the SUS ingress:
+
+```yaml
+ingress:
+  annotations:
+    nginx.ingress.kubernetes.io/auth-url: "http://sus-authelia.sus.svc.cluster.local:9091/api/authz/auth-request"
+    nginx.ingress.kubernetes.io/auth-signin: "https://auth.example.com?rm=$request_method"
+    nginx.ingress.kubernetes.io/auth-response-headers: "Remote-User,Remote-Groups,Remote-Name,Remote-Email"
+```
+
+Prefer a different provider (tinyauth, oauth2-proxy, Authentik)? The landing app consumes standard `Remote-*`/`X-Forwarded-*` headers, so any forward-auth proxy works — set `auth.enabled=false`, run your own proxy, and set `auth.trustedProxies` (via a `proxy-header` config) to its pod CIDR. See [`SUS - Platform Design.md`](SUS%20-%20Platform%20Design.md) for the trusted-header hardening model.
 
 ---
 
