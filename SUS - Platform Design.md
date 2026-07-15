@@ -206,7 +206,9 @@ Earlier iterations assumed a Google Cloud Identity-Aware Proxy (IAP) in front of
 
 #### Recommended default: reverse-proxy forward-auth
 
-Place a forward-auth gateway behind the Kubernetes Ingress and have it authenticate every request before it reaches the landing pod. **Authelia** is the reference implementation for a homelabber — lean, single-purpose, small attack surface — with **Authentik** as the heavier alternative when a full IdP (OIDC/SAML/LDAP) is already wanted.
+Place a forward-auth gateway behind the Kubernetes Ingress and have it authenticate every request before it reaches the landing pod. **Authelia** is the reference implementation for a homelabber — mature, single-purpose, small attack surface, and easy to stand up with a file-based user store and its own login portal. SUS ships a bundled, opt-in Authelia (`--set auth.enabled=true`) as the turnkey path; a Traefik forward-auth middleware gates the SUS UI and Authelia returns the identity as `Remote-*` headers.
+
+Alternatives that drop into the same forward-auth slot: **tinyauth** (even lighter, newer project) for minimal setups; **oauth2-proxy** as a thin connector when the operator already runs an OIDC provider; and **Authentik** as a full IdP when SAML, LDAP, or multiple upstream providers are needed.
 
 This is the only approach that satisfies all of SUS's constraints at once:
 
@@ -226,11 +228,11 @@ The identity provider is configured via a single setting in the SUS config file,
 
 Trusted-header auth is only as strong as the guarantee that the headers came from the proxy and nothing else. The backend sees the *proxy's* source IP, so it must trust identity headers **only** from the specific proxy address — trusting a whole Pod CIDR or flat network is exploitable: any compromised or malicious pod in that network can forge `Remote-User: admin` and bypass authentication entirely.
 
-For SUS this is not hypothetical. Build and run pods already call the landing service at `SUS_API_URL`, and the apps running in them are semi-untrusted (LLM-generated). If SUS naively trusts a `Remote-User` header, a built app can send `Remote-User: admin` to `SUS_API_URL` and impersonate the operator — the same app→platform boundary tracked in the platform-API hardening issues (see #79 unauthenticated `/api/secrets`, #80 unvalidated `pod_ip` proxying). Forward-auth therefore **must compose with network isolation, not replace it.** Three requirements hold together:
+For SUS this is not hypothetical. Build and run pods already call the landing service at `SUS_API_URL`, and the apps running in them are semi-untrusted (LLM-generated). If SUS naively trusts a `Remote-User` header, a built app can send `Remote-User: admin` to `SUS_API_URL` and impersonate the operator — the same app→platform boundary tracked in the platform-API hardening issues (see #79 unauthenticated `/api/secrets`, #80 unvalidated `pod_ip` proxying). Forward-auth therefore **must compose with network isolation, not replace it.** Three requirements hold together, each now implemented when `auth.enabled=true`:
 
-1. **NetworkPolicy** restricting the landing pod's authenticated port so it is reachable only from the ingress controller — never from the workloads namespace where apps run.
-2. **SUS strips/ignores inbound identity headers** from any source except the configured trusted proxy IP; a request that didn't traverse the proxy is treated as anonymous.
-3. **The proxy overwrites (not appends)** identity headers on every request, so a client-supplied copy can't survive.
+1. **NetworkPolicy** on the landing pod's HTTP port (`charts/sus/templates/networkpolicy.yaml`). It admits the ingress controller (authenticated UI traffic) plus the workloads and platform namespaces. The workloads allowance is deliberate — build/run pods legitimately call the platform API on that port — which means an in-cluster app pod can still reach the API surface directly. Closing that residual vector is #79 (authenticate the API) / #80 (validate `pod_ip`), not this control.
+2. **`ProxyHeaderProvider` ignores identity headers unless the request's raw socket peer is within `identity_options.trusted_proxies`** (`landing/app/identity.py`); anything else resolves to an anonymous guest. The peer IP is the real socket address, not a forwardable header — uvicorn must not be run with a wildcard `--forwarded-allow-ips`.
+3. **The Traefik forward-auth middleware overwrites (not appends)** the `Remote-*` headers from Authelia's response on every request, so a client-supplied copy can't survive (`charts/sus/templates/authelia/middleware.yaml`).
 
 Additionally, keep the ingress patched (e.g. Traefik ≥ v2.11.43 / v3.6.14 for the `X-Forwarded-Prefix` ForwardAuth fix) and strip client-supplied `X-Forwarded-*` at the edge.
 

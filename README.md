@@ -161,6 +161,29 @@ ingress:
 
 For Traefik (common in k3s/k3d), WebSocket support is enabled by default — no extra annotations needed.
 
+### Authentication (Authelia)
+
+By default SUS runs single-user with no login. To put real authentication in front of the UI, enable the bundled **Authelia** forward-auth (Traefik only, requires the ingress):
+
+```bash
+helm upgrade sus ./charts/sus \
+  --set ingress.enabled=true \
+  --set ingress.host=sus.example.com \
+  --set auth.enabled=true \
+  --set auth.domain=example.com \
+  --set 'auth.trustedProxies={10.42.0.0/16}'
+```
+
+This deploys Authelia, gates the SUS UI behind it, and switches the landing pod to trusted-header identity so build sessions are attributed to the logged-in user.
+
+**Required before exposing SUS:**
+
+- **DNS** — `sus.example.com` (the app) and `auth.example.com` (the login portal) must both resolve to your ingress. `ingress.host` must be `auth.domain` or a subdomain of it so one session cookie covers both.
+- **`auth.trustedProxies`** — the ingress controller's pod CIDR (k3s/k3d Traefik: `10.42.0.0/16`). The landing app only trusts identity headers from these peers; an empty list trusts *any* source and is for testing only.
+- **Secrets & users** — override the placeholders. Provide your own secret via `--set auth.authelia.secrets.existingSecret=<name>` (keys `session`, `storage-encryption`, `jwt`), and replace the sample `auth.authelia.users` (generate an argon2id hash with `docker run authelia/authelia:4.38 authelia crypto hash generate argon2 --password '<pw>'`).
+
+Prefer a different provider (tinyauth, oauth2-proxy, Authentik)? The landing app consumes standard `Remote-*`/`X-Forwarded-*` headers, so any forward-auth proxy works — point its Traefik middleware at the SUS ingress and set `auth.trustedProxies` accordingly. See [`SUS - Platform Design.md`](SUS%20-%20Platform%20Design.md) for the trusted-header hardening model.
+
 ---
 
 ## Makefile Targets

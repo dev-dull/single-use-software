@@ -34,8 +34,10 @@ data:
       expiration: 1h
       inactivity: 5m
       cookies:
+        # Authelia requires the portal URL to use https (secure scheme); serve
+        # auth.<domain> behind TLS at the ingress (ingress.tls).
         - domain: {{ .Values.auth.domain | quote }}
-          authelia_url: {{ printf "http://auth.%s" .Values.auth.domain | quote }}
+          authelia_url: {{ printf "https://auth.%s" .Values.auth.domain | quote }}
     regulation:
       max_retries: 3
       find_time: 2m
