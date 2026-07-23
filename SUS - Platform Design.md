@@ -236,6 +236,12 @@ For SUS this is not hypothetical. Build and run pods already call the landing se
 
 Additionally, keep the ingress patched (e.g. Traefik ≥ v2.11.43 / v3.6.14 for the `X-Forwarded-Prefix` ForwardAuth fix) and strip client-supplied `X-Forwarded-*` at the edge.
 
+#### Viewer identity for apps (`X-SUS-*`)
+
+Apps served through the platform proxy (build preview and run mode) receive the *viewer's* identity as headers injected by the landing proxy: `X-SUS-User`, `X-SUS-Name`, `X-SUS-Groups` (guest values when anonymous). The proxy strips every inbound identity header (`Remote-*`, `X-Forwarded-*`, `X-SUS-*`) before injecting, and the injected values come from the landing app's own trusted-proxy-checked resolution. This is the supported way for built apps to personalise per-user; the build pod's `USER_ID` env var identifies the *builder*, not the viewer.
+
+The forge-resistance of `X-SUS-*` is exactly as strong as `trusted_proxies` is narrow. With it pinned to the ingress controller's actual IPs, an in-cluster caller that bypasses the ingress resolves as guest and cannot feed apps a forged identity (verified live). With the pragmatic flat-network setting (whole pod CIDR), any pod counts as a "trusted proxy" and can forge viewer identity to apps — the same flat-network residual tracked under #79/#80. Recommend the narrowest `trusted_proxies` the deployment allows.
+
 ### **Policy Model**
 
 In single-user mode, the operator has full access to all apps and data sources — no policy filtering is applied.

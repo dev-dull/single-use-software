@@ -180,7 +180,7 @@ helm upgrade sus ./charts/sus \
 **Required before exposing SUS:**
 
 - **DNS** — `sus.example.com` (the app) and `auth.example.com` (the login portal) must both resolve to your ingress. `ingress.host` must be `auth.domain` or a subdomain of it so one session cookie covers both.
-- **`auth.trustedProxies`** — your ingress controller's pod CIDR (k3s/k3d: `10.42.0.0/16`). The landing app only trusts identity headers from these peers; an empty list trusts *any* source and is for testing only.
+- **`auth.trustedProxies`** — the source IPs the landing app accepts identity headers from. **Narrower is stronger**: pinning your ingress controller's actual pod IP(s) means nothing else in the cluster can assert an identity. The whole pod CIDR (k3s/k3d: `10.42.0.0/16`) is the pragmatic fallback when controller IPs aren't stable, but it lets any in-cluster pod act as a "trusted proxy". An empty list trusts *any* source and is for testing only.
 - **Secrets & users** — override the placeholders. Provide your own secret via `--set auth.authelia.secrets.existingSecret=<name>` (keys `session`, `storage-encryption`, `jwt`), and replace the sample `auth.authelia.users` (generate an argon2id hash with `docker run authelia/authelia:4.38 authelia crypto hash generate argon2 --password '<pw>'`).
 
 #### Adding users

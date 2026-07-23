@@ -6,10 +6,12 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 
+from ..deps import resolve_identity
+from ..identity import UserIdentity
 from ..proxy import http_proxy
 from ..published_apps import PublishedAppStore
 from ..run_pods import RunPodManager
@@ -76,6 +78,7 @@ async def run_proxy(
     team: str,
     app_slug: str,
     path: str,
+    identity: UserIdentity = Depends(resolve_identity),
 ) -> Response:
     """Proxy HTTP requests to the published app.
 
@@ -113,6 +116,7 @@ async def run_proxy(
                 pod_ip=pod_ip,
                 pod_port=3000,
                 path=f"/{path}" if path else "/",
+                identity=identity,
             )
             if resp.status_code != 502:
                 return resp

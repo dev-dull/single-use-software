@@ -276,10 +276,14 @@ async def build_preview(
     app_slug: str,
     path: str,
     pod_ip: str = Query("", alias="pod_ip"),
+    identity: UserIdentity = Depends(resolve_identity),
 ) -> Response:
     """Proxy HTTP requests to the build pod's app preview server."""
     if pod_ip:
-        resp = await http_proxy(request, pod_ip=pod_ip, pod_port=3000, path=f"/{path}")
+        resp = await http_proxy(
+            request, pod_ip=pod_ip, pod_port=3000, path=f"/{path}",
+            identity=identity,
+        )
         if resp.status_code != 502:
             return resp
 
