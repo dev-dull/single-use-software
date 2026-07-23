@@ -38,12 +38,16 @@ def _get_repo_url() -> str:
     except Exception:
         pass
 
-    # Inject token into HTTP(S) URLs: https://TOKEN@host/... or http://TOKEN@host/...
+    # Inject token as user:password credentials. The username-only form
+    # (https://TOKEN@host) cannot authenticate non-interactively: git treats
+    # the token as a username and prompts for a password, which fails in a
+    # pod. "x-access-token" is GitHub's documented username for token auth
+    # and is accepted by GitLab/Gitea as well.
     if token:
         if url.startswith("https://"):
-            url = re.sub(r"^https://", f"https://{token}@", url)
+            url = re.sub(r"^https://", f"https://x-access-token:{token}@", url)
         elif url.startswith("http://"):
-            url = re.sub(r"^http://", f"http://{token}@", url)
+            url = re.sub(r"^http://", f"http://x-access-token:{token}@", url)
 
     return url
 

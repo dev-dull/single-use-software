@@ -25,8 +25,9 @@ git config --global --add safe.directory /repo
 
 REPO_URL="${GIT_REPO_URL:-}"
 if [ -n "${GIT_TOKEN:-}" ] && [ -n "$REPO_URL" ]; then
-    # Inject token into HTTP(S) URL: https://TOKEN@host/... or http://TOKEN@host/...
-    REPO_URL=$(echo "$REPO_URL" | sed -e "s|^https://|https://${GIT_TOKEN}@|" -e "s|^http://|http://${GIT_TOKEN}@|")
+    # Inject token as user:password credentials — the username-only form
+    # (https://TOKEN@host) makes git prompt for a password and fail in a pod.
+    REPO_URL=$(echo "$REPO_URL" | sed -e "s|^https://|https://x-access-token:${GIT_TOKEN}@|" -e "s|^http://|http://x-access-token:${GIT_TOKEN}@|")
 fi
 
 # --- Clone or init --------------------------------------------------------
