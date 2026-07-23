@@ -19,6 +19,14 @@ spec:
       labels:
         {{- include "sus.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: authelia
+      annotations:
+        # Roll Authelia whenever its config or the chart-rendered users/secrets
+        # change — Authelia reads both at startup, so without this a helm
+        # upgrade that adds a user updates the Secret but the new user can't
+        # log in until a manual restart. (No effect when existingSecret is
+        # used — rotate/roll that yourself.)
+        checksum/authelia-config: {{ include (print $.Template.BasePath "/authelia/configmap.yaml") . | sha256sum }}
+        checksum/authelia-secret: {{ include (print $.Template.BasePath "/authelia/secret.yaml") . | sha256sum }}
     spec:
       containers:
         - name: authelia

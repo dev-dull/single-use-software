@@ -183,6 +183,20 @@ helm upgrade sus ./charts/sus \
 - **`auth.trustedProxies`** — your ingress controller's pod CIDR (k3s/k3d: `10.42.0.0/16`). The landing app only trusts identity headers from these peers; an empty list trusts *any* source and is for testing only.
 - **Secrets & users** — override the placeholders. Provide your own secret via `--set auth.authelia.secrets.existingSecret=<name>` (keys `session`, `storage-encryption`, `jwt`), and replace the sample `auth.authelia.users` (generate an argon2id hash with `docker run authelia/authelia:4.38 authelia crypto hash generate argon2 --password '<pw>'`).
 
+#### Adding users
+
+Users are managed in Authelia, not SUS — anyone Authelia authenticates automatically becomes a SUS user (the `Remote-User` value is the SUS user ID; build sessions, pods, and git branches are attributed to it). With the bundled file backend there is no self-service signup; the operator adds users:
+
+```bash
+# 1. Generate an argon2id hash
+docker run --rm authelia/authelia:4.38 authelia crypto hash generate argon2 --password 'their-password'
+
+# 2. Add the user under auth.authelia.users in your values, then:
+helm upgrade sus ./charts/sus -f your-values.yaml
+```
+
+The chart rolls Authelia automatically when the user list changes. For larger teams, manage the users file yourself via `auth.authelia.secrets.existingSecret`, or point Authelia at an LDAP backend / use a full IdP (see alternatives below).
+
 #### Wiring forward-auth at your ingress
 
 The Authelia service is reachable in-cluster at `http://sus-authelia.sus.svc.cluster.local:9091`. Point your controller's forward-auth at it and forward the `Remote-User`, `Remote-Groups`, `Remote-Name`, and `Remote-Email` response headers to the SUS UI.
