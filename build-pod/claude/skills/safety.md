@@ -22,7 +22,7 @@ constructing a shared skill in `claude/skills/`.
 
 - `/repo/apps/engineering/some-other-app/main.py` — belongs to a different
   team.
-- `/repo/claude/CLAUDE.md` — immutable system file, never modify.
+- `~/.claude/CLAUDE.md` — immutable platform instructions, never modify.
 - `/repo/.github/workflows/deploy.yml` — infrastructure file, out of scope.
 - `/etc/passwd`, `/root/.ssh/`, any system path — absolutely never.
 

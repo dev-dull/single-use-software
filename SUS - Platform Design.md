@@ -167,7 +167,7 @@ Non-engineer users never touch git. Claude handles it all, instructed via CLAUDE
 
 ## **CLAUDE.md — Immutable Instructions**
 
-CLAUDE.md is baked into the container image at /repo/claude/CLAUDE.md with permissions 444. It cannot be edited by users or by Claude itself. It defines:
+CLAUDE.md is baked into the container image at /home/sus/.claude/CLAUDE.md (Claude Code's user-memory location — auto-loaded for every session regardless of working directory, and outside the git working tree so it can never be committed to the user's app repo) with permissions 444. It cannot be edited by users or by Claude itself. It defines:
 
 1. **Default stack**: Python \+ HTMX unless the user explicitly requests otherwise  
 2. **Git workflow**: the rules above — Claude manages all git operations silently  

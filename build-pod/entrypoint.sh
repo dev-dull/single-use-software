@@ -38,10 +38,10 @@ if [ -n "$REPO_URL" ]; then
     if [ ! -d "/repo/.git" ]; then
         git clone "$REPO_URL" /tmp/repo-clone
         # Make baked-in read-only files writable so clone can overwrite them.
+        # (Platform CLAUDE.md lives at ~/.claude/CLAUDE.md, outside /repo.)
         chmod -R u+w /repo/claude/ 2>/dev/null || true
         cp -a /tmp/repo-clone/. /repo/
-        # Restore read-only on CLAUDE.md and skills.
-        chmod 444 /repo/claude/CLAUDE.md 2>/dev/null || true
+        # Restore read-only on skills.
         chmod 444 /repo/claude/skills/*.md 2>/dev/null || true
         rm -rf /tmp/repo-clone
     fi
