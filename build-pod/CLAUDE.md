@@ -65,6 +65,32 @@ If `APP_DESCRIPTION` is set, use it as your starting context. The user expects t
 
 ---
 
+## Personalizing for the Current Viewer
+
+Every request that reaches the app has been routed through the SUS platform, which injects **verified identity headers** describing whoever is viewing the app right now:
+
+- `X-SUS-User` — the viewer's username (or `guest` when not logged in)
+- `X-SUS-Name` — the viewer's display name (or `Guest`)
+- `X-SUS-Groups` — comma-separated group list
+
+Use these when the user asks for personalization ("greet me by name", "show who's logged in", per-user data). Example:
+
+```python
+from fastapi import Request
+
+@app.get("/")
+def home(request: Request):
+    name = request.headers.get("X-SUS-Name", "Guest")
+    return f"Hello, {name}."
+```
+
+Notes:
+- These headers are set by the platform and cannot be forged by visitors — safe to trust for display and per-user records. Do NOT treat group membership as security authorization for sensitive actions without asking the user what they intend.
+- Do not read `Remote-*` or `X-Forwarded-*` headers for identity; the platform strips them. `X-SUS-*` is the only supported source.
+- The `USER_ID` environment variable is the person who *built* the app — use the headers, not the env var, for whoever is *viewing* it.
+
+---
+
 ## Environment Pre-Configuration
 
 This build pod is already fully configured. Do NOT prompt the user for any

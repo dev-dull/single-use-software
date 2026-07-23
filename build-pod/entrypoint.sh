@@ -25,8 +25,9 @@ git config --global --add safe.directory /repo
 
 REPO_URL="${GIT_REPO_URL:-}"
 if [ -n "${GIT_TOKEN:-}" ] && [ -n "$REPO_URL" ]; then
-    # Inject token into HTTP(S) URL: https://TOKEN@host/... or http://TOKEN@host/...
-    REPO_URL=$(echo "$REPO_URL" | sed -e "s|^https://|https://${GIT_TOKEN}@|" -e "s|^http://|http://${GIT_TOKEN}@|")
+    # Inject token as user:password credentials — the username-only form
+    # (https://TOKEN@host) makes git prompt for a password and fail in a pod.
+    REPO_URL=$(echo "$REPO_URL" | sed -e "s|^https://|https://x-access-token:${GIT_TOKEN}@|" -e "s|^http://|http://x-access-token:${GIT_TOKEN}@|")
 fi
 
 # --- Clone or init --------------------------------------------------------
@@ -38,10 +39,10 @@ if [ -n "$REPO_URL" ]; then
     if [ ! -d "/repo/.git" ]; then
         git clone "$REPO_URL" /tmp/repo-clone
         # Make baked-in read-only files writable so clone can overwrite them.
+        # (Platform CLAUDE.md lives at ~/.claude/CLAUDE.md, outside /repo.)
         chmod -R u+w /repo/claude/ 2>/dev/null || true
         cp -a /tmp/repo-clone/. /repo/
-        # Restore read-only on CLAUDE.md and skills.
-        chmod 444 /repo/claude/CLAUDE.md 2>/dev/null || true
+        # Restore read-only on skills.
         chmod 444 /repo/claude/skills/*.md 2>/dev/null || true
         rm -rf /tmp/repo-clone
     fi

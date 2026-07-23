@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import abc
 import hashlib
+import ipaddress
 import json
+import logging
 import os
 import secrets
 import sqlite3
@@ -13,6 +15,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Sequence
 
 from starlette.requests import Request
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -55,26 +59,103 @@ class SingleUserProvider(IdentityProvider):
 class ProxyHeaderProvider(IdentityProvider):
     """Identity provider that trusts reverse-proxy forwarded headers.
 
-    Expects the upstream proxy to set:
-    - ``X-Forwarded-User`` or ``X-Forwarded-Email`` -- user identifier
-    - ``X-Forwarded-Name`` -- display name (falls back to user ID)
-    - ``X-Forwarded-Groups`` -- comma-separated group list
+    Designed for a forward-auth gateway (e.g. Authelia) that authenticates
+    each request and injects the resolved identity as trusted headers:
+
+    - ``Remote-User`` / ``Remote-Email`` -- user identifier (Authelia)
+    - ``Remote-Name`` -- display name
+    - ``Remote-Groups`` -- comma-separated group list
+
+    The ``X-Forwarded-*`` variants are accepted as a fallback for proxies
+    that use that naming (oauth2-proxy, etc.).
+
+    Security: these headers are only trustworthy when they came from the
+    forward-auth proxy. Any client — including a semi-untrusted build/run
+    pod calling the platform API — could otherwise set ``Remote-User: admin``
+    and impersonate the operator. ``trusted_proxies`` pins the set of source
+    IPs/CIDRs whose identity headers are honoured; requests from anywhere
+    else are treated as anonymous. The peer IP is taken from the raw socket
+    (``request.client.host``), never from a forwardable header, so it cannot
+    be spoofed as long as uvicorn is not configured to rewrite the client
+    from ``X-Forwarded-For``.
     """
 
+    # Header names in preference order: Authelia's Remote-* first, then the
+    # X-Forwarded-* fallback.
+    _USER_HEADERS = ("Remote-User", "Remote-Email",
+                     "X-Forwarded-User", "X-Forwarded-Email")
+    _NAME_HEADERS = ("Remote-Name", "X-Forwarded-Name")
+    _GROUPS_HEADERS = ("Remote-Groups", "X-Forwarded-Groups")
+
+    def __init__(
+        self,
+        trusted_proxies: Optional[Sequence[str]] = None,
+        header_style: str = "remote",
+    ) -> None:
+        self._header_style = header_style
+        self._trusted_networks: list[ipaddress._BaseNetwork] = []
+        for entry in trusted_proxies or []:
+            try:
+                # ``strict=False`` lets a bare host IP ("10.42.0.5") parse as
+                # a /32 (or /128) network.
+                self._trusted_networks.append(
+                    ipaddress.ip_network(entry, strict=False)
+                )
+            except ValueError:
+                logger.warning(
+                    "Ignoring invalid trusted_proxies entry: %r", entry
+                )
+        self._warned_open = False
+
+    @staticmethod
+    def _guest() -> UserIdentity:
+        return UserIdentity(id="guest", display_name="Guest", groups=["guest"])
+
+    def _peer_trusted(self, request: Request) -> bool:
+        """Return True if the request's raw socket peer is a trusted proxy."""
+        if not self._trusted_networks:
+            # No trust anchor configured. Honour headers for backward
+            # compatibility, but warn once — this is the footgun the design
+            # doc calls out (any caller can forge identity headers).
+            if not self._warned_open:
+                logger.warning(
+                    "ProxyHeaderProvider has no trusted_proxies configured; "
+                    "identity headers are trusted from ANY source. Set "
+                    "identity_options.trusted_proxies to the forward-auth "
+                    "proxy address to close this hole."
+                )
+                self._warned_open = True
+            return True
+
+        client = request.client
+        if client is None or not client.host:
+            return False
+        try:
+            peer = ipaddress.ip_address(client.host)
+        except ValueError:
+            return False
+        return any(peer in net for net in self._trusted_networks)
+
+    @staticmethod
+    def _first_header(request: Request, names: Sequence[str]) -> Optional[str]:
+        for name in names:
+            value = request.headers.get(name)
+            if value:
+                return value
+        return None
+
     async def resolve(self, request: Request) -> UserIdentity:
-        user_id = request.headers.get(
-            "X-Forwarded-User"
-        ) or request.headers.get("X-Forwarded-Email")
+        # An untrusted peer gets no identity, regardless of what headers it
+        # sent — treat it as an anonymous guest.
+        if not self._peer_trusted(request):
+            return self._guest()
 
+        user_id = self._first_header(request, self._USER_HEADERS)
         if not user_id:
-            return UserIdentity(
-                id="guest",
-                display_name="Guest",
-                groups=["guest"],
-            )
+            return self._guest()
 
-        display_name = request.headers.get("X-Forwarded-Name") or user_id
-        groups_header = request.headers.get("X-Forwarded-Groups", "default")
+        display_name = self._first_header(request, self._NAME_HEADERS) or user_id
+        groups_header = self._first_header(request, self._GROUPS_HEADERS) or "default"
         groups = [g.strip() for g in groups_header.split(",") if g.strip()]
 
         return UserIdentity(

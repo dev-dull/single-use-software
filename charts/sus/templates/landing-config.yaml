@@ -1,0 +1,21 @@
+{{- if .Values.auth.enabled }}
+# sus_config.json for the landing pod — switches identity resolution to the
+# proxy-header provider and pins which proxy IPs may assert identity headers.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sus.fullname" . }}-landing-config
+  namespace: {{ .Values.namespaces.platform }}
+  labels:
+    {{- include "sus.labels" . | nindent 4 }}
+    app.kubernetes.io/component: landing
+data:
+  sus_config.json: |
+    {
+      "identity_provider": "proxy-header",
+      "identity_options": {
+        "trusted_proxies": {{ .Values.auth.trustedProxies | toJson }},
+        "header_style": "remote"
+      }
+    }
+{{- end }}

@@ -1,8 +1,9 @@
 # CLAUDE.md — SUS Platform Instructions
 
 > **This file is immutable.** It is baked into the build pod image at
-> `/repo/claude/CLAUDE.md` with permissions `444`. Neither users nor Claude
-> may modify it at runtime.
+> `/home/sus/.claude/CLAUDE.md` (Claude Code's user-memory location, so it is
+> auto-loaded for every session) with permissions `444`. Neither users nor
+> Claude may modify it at runtime.
 
 ---
 

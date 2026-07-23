@@ -147,11 +147,25 @@ class GitWorkflowManager:
                 f"git commit -m '{commit_msg}'"
             ])
 
-            # Push the working branch to the remote.
-            self._pods.exec_in_pod(pod_name, [
+            # Push the working branch to the remote. The exec API does not
+            # surface exit codes, so detect failure from git's output instead
+            # of silently reporting success while work stays pod-local.
+            push_out = self._pods.exec_in_pod(pod_name, [
                 "bash", "-c",
                 "cd /repo && git push origin ${GIT_BRANCH} 2>&1 || true"
-            ])
+            ]) or ""
+            if any(marker in push_out for marker in ("fatal:", "error:", "rejected")):
+                logger.error(
+                    "Save for %s/%s: commit ok but push failed: %s",
+                    team, app_slug, push_out.strip()[-300:],
+                )
+                return {
+                    "status": "error",
+                    "detail": (
+                        "committed locally, but pushing to the app repository "
+                        "failed — check the Git access token in /setup"
+                    ),
+                }
 
             logger.info("Saved %s/%s — pushed branch %s", team, app_slug, branch)
             return {"status": "saved", "branch": branch}

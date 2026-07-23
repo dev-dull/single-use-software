@@ -21,7 +21,8 @@ git config --global --add safe.directory /repo
 
 REPO_URL="${GIT_REPO_URL:-}"
 if [ -n "${GIT_TOKEN:-}" ] && [ -n "$REPO_URL" ]; then
-    REPO_URL=$(echo "$REPO_URL" | sed -e "s|^https://|https://${GIT_TOKEN}@|" -e "s|^http://|http://${GIT_TOKEN}@|")
+    # user:password form — username-only token URLs cannot push non-interactively.
+    REPO_URL=$(echo "$REPO_URL" | sed -e "s|^https://|https://x-access-token:${GIT_TOKEN}@|" -e "s|^http://|http://x-access-token:${GIT_TOKEN}@|")
 fi
 
 if [ -z "$REPO_URL" ]; then

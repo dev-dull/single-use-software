@@ -1,0 +1,20 @@
+{{- if .Values.auth.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "sus.authelia.fullname" . }}
+  namespace: {{ .Values.namespaces.platform }}
+  labels:
+    {{- include "sus.labels" . | nindent 4 }}
+    app.kubernetes.io/component: authelia
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9091
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "sus.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: authelia
+{{- end }}

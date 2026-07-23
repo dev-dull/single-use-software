@@ -1,0 +1,101 @@
+{{- if .Values.auth.enabled }}
+{{- $secretName := .Values.auth.authelia.secrets.existingSecret | default (include "sus.authelia.fullname" .) }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sus.authelia.fullname" . }}
+  namespace: {{ .Values.namespaces.platform }}
+  labels:
+    {{- include "sus.labels" . | nindent 4 }}
+    app.kubernetes.io/component: authelia
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "sus.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: authelia
+  template:
+    metadata:
+      labels:
+        {{- include "sus.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: authelia
+      annotations:
+        # Roll Authelia whenever its config or the chart-rendered users/secrets
+        # change — Authelia reads both at startup, so without this a helm
+        # upgrade that adds a user updates the Secret but the new user can't
+        # log in until a manual restart. (No effect when existingSecret is
+        # used — rotate/roll that yourself.)
+        checksum/authelia-config: {{ include (print $.Template.BasePath "/authelia/configmap.yaml") . | sha256sum }}
+        checksum/authelia-secret: {{ include (print $.Template.BasePath "/authelia/secret.yaml") . | sha256sum }}
+    spec:
+      containers:
+        - name: authelia
+          image: "{{ .Values.auth.authelia.image.repository }}:{{ .Values.auth.authelia.image.tag }}"
+          imagePullPolicy: {{ .Values.auth.authelia.image.pullPolicy }}
+          # The image entrypoint only recognises "--config" as a separate token
+          # (it execs the args verbatim otherwise), so keep flag and path split.
+          args:
+            - --config
+            - /config/configuration.yml
+          ports:
+            - name: http
+              containerPort: 9091
+              protocol: TCP
+          env:
+            - name: AUTHELIA_SESSION_SECRET_FILE
+              value: /secrets/session
+            - name: AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE
+              value: /secrets/storage-encryption
+            - name: AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET_FILE
+              value: /secrets/jwt
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.auth.authelia.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /config/configuration.yml
+              subPath: configuration.yml
+              readOnly: true
+            - name: users
+              mountPath: /config/users_database.yml
+              subPath: users_database.yml
+              readOnly: true
+            - name: secrets
+              mountPath: /secrets
+              readOnly: true
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "sus.authelia.fullname" . }}
+        - name: users
+          secret:
+            secretName: {{ $secretName }}
+            items:
+              - key: users_database.yml
+                path: users_database.yml
+        - name: secrets
+          secret:
+            secretName: {{ $secretName }}
+            items:
+              - key: session
+                path: session
+              - key: storage-encryption
+                path: storage-encryption
+              - key: jwt
+                path: jwt
+        - name: data
+          emptyDir: {}
+{{- end }}

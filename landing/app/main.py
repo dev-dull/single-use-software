@@ -12,8 +12,8 @@ from fastapi.templating import Jinja2Templates
 
 from .catalog import all_tags, scan_apps
 from .cleanup import start_cleanup_loop
-from .config import create_identity_provider, load_config
-from .identity import IdentityProvider, UserIdentity
+from .deps import get_identity_provider, resolve_identity
+from .identity import UserIdentity
 from .pods import BuildPodManager
 from .analytics import AnalyticsTracker
 from .middleware import AnalyticsMiddleware
@@ -84,25 +84,9 @@ async def _start_background_tasks() -> None:
 _templates_dir = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(_templates_dir))
 
-# ---------------------------------------------------------------------------
-# Identity dependency
-# ---------------------------------------------------------------------------
-
-_identity_provider: IdentityProvider = create_identity_provider(load_config())
-
-
-def get_identity_provider() -> IdentityProvider:
-    """Return the active identity provider (swappable at startup)."""
-    return _identity_provider
-
-
-async def resolve_identity(
-    request: Request,
-    provider: IdentityProvider = Depends(get_identity_provider),
-) -> UserIdentity:
-    """Dependency that resolves the calling user's identity."""
-    return await provider.resolve(request)
-
+# Identity resolution lives in ``deps`` to avoid circular imports; the names
+# are re-exported here for backward compatibility (e.g. ``routes.auth``).
+__all__ = ["app", "get_identity_provider", "resolve_identity"]
 
 # ---------------------------------------------------------------------------
 # Routes

@@ -12,6 +12,8 @@ from fastapi import WebSocket, WebSocketDisconnect
 from starlette.requests import Request
 from starlette.responses import Response
 
+from .identity import UserIdentity
+
 logger = logging.getLogger(__name__)
 
 # Hop-by-hop headers that must NOT be forwarded through an HTTP proxy.
@@ -28,6 +30,51 @@ _HOP_BY_HOP = frozenset(
         "upgrade",
     )
 )
+
+# Identity headers are never forwarded verbatim: the ingress-injected values
+# (Remote-*/X-Forwarded-*) are only trustworthy at the landing pod itself, and
+# a caller that bypassed the ingress could forge them. The proxy strips all of
+# these and instead injects verified X-SUS-* headers from the identity the
+# landing app resolved (trusted-proxy check included).
+_IDENTITY_HEADERS = frozenset(
+    h.lower()
+    for h in (
+        "remote-user",
+        "remote-groups",
+        "remote-name",
+        "remote-email",
+        "x-forwarded-user",
+        "x-forwarded-groups",
+        "x-forwarded-name",
+        "x-forwarded-email",
+        "x-sus-user",
+        "x-sus-groups",
+        "x-sus-name",
+        "x-sus-email",
+    )
+)
+
+
+def build_proxy_headers(
+    request_headers: Any,
+    identity: UserIdentity | None = None,
+) -> dict[str, str]:
+    """Build outbound proxy headers: strip hop-by-hop, encoding, and all
+    inbound identity headers; inject verified ``X-SUS-*`` identity.
+
+    Apps behind the proxy read ``X-SUS-User`` (and ``-Groups``/``-Name``/
+    ``-Email``) to personalise per-viewer. When no identity is supplied the
+    guest values are injected so apps always see a consistent contract.
+    """
+    strip = _HOP_BY_HOP | {"host", "accept-encoding"} | _IDENTITY_HEADERS
+    out: dict[str, str] = {
+        k: v for k, v in request_headers.items() if k.lower() not in strip
+    }
+    out["X-SUS-User"] = identity.id if identity else "guest"
+    out["X-SUS-Name"] = identity.display_name if identity else "Guest"
+    groups = list(identity.groups or []) if identity else ["guest"]
+    out["X-SUS-Groups"] = ",".join(groups)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -127,12 +174,16 @@ async def http_proxy(
     pod_ip: str,
     pod_port: int = 3000,
     path: str = "/",
+    identity: UserIdentity | None = None,
 ) -> Response:
     """Forward an HTTP request to the build pod's app preview server.
 
     Proxies the incoming *request* to ``http://{pod_ip}:{pod_port}{path}``
     preserving method, headers, query string, and body.  Returns the
     upstream response with the same status, headers, and body.
+
+    Inbound identity headers are always stripped; pass *identity* to inject
+    the verified ``X-SUS-*`` headers so the app can personalise per-viewer.
     """
     target_url = f"http://{pod_ip}:{pod_port}{path}"
     if request.url.query:
@@ -140,15 +191,9 @@ async def http_proxy(
         # simplicity we forward the full query string for now.
         target_url = f"{target_url}?{request.url.query}"
 
-    # Build outbound headers, stripping hop-by-hop and encoding headers.
-    # We strip Accept-Encoding so the backend sends uncompressed content,
+    # Accept-Encoding is stripped so the backend sends uncompressed content,
     # avoiding Content-Length mismatches from httpx auto-decompression.
-    _STRIP_REQUEST = _HOP_BY_HOP | {"host", "accept-encoding"}
-    out_headers: dict[str, str] = {
-        k: v
-        for k, v in request.headers.items()
-        if k.lower() not in _STRIP_REQUEST
-    }
+    out_headers = build_proxy_headers(request.headers, identity)
 
     body = await request.body()
 

@@ -48,7 +48,10 @@ def create_identity_provider(config: dict[str, Any]) -> IdentityProvider:
     if name == "single-user":
         return SingleUserProvider()
     if name == "proxy-header":
-        return ProxyHeaderProvider()
+        return ProxyHeaderProvider(
+            trusted_proxies=options.get("trusted_proxies", []),
+            header_style=options.get("header_style", "remote"),
+        )
     if name == "local-database":
         return LocalDatabaseProvider(
             db_path=options.get("db_path", "users.db")

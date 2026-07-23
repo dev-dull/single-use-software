@@ -11,3 +11,36 @@ To access the landing page locally, run:
   kubectl port-forward -n {{ .Values.namespaces.platform }} svc/{{ include "sus.fullname" . }}-landing {{ .Values.service.port }}:{{ .Values.service.port }}
 
 Then open http://localhost:{{ .Values.service.port }} in your browser.
+{{- if .Values.auth.enabled }}
+
+Authentication (Authelia) is ENABLED. The chart deploys Authelia and switches the
+landing pod to trusted-header identity, but it does NOT wire your ingress — that
+step is controller-specific and left to you.
+
+  - Login portal:   http://auth.{{ .Values.auth.domain }} (expose via your ingress)
+  - Authelia (in-cluster forward-auth endpoint):
+      {{ include "sus.authelia.serviceUrl" . }}/api/authz/forward-auth   (Traefik)
+      {{ include "sus.authelia.serviceUrl" . }}/api/authz/auth-request   (nginx)
+
+  ACTION REQUIRED: add a forward-auth rule for your ingress controller that sends
+  requests to the endpoint above and forwards the Remote-User/Remote-Groups/
+  Remote-Name/Remote-Email response headers to the SUS UI. Until you do, the app
+  sees no identity and treats everyone as an anonymous guest. See the README
+  "Authentication (Authelia)" section for Traefik and nginx snippets.
+
+  {{- if not .Values.ingress.enabled }}
+
+  WARNING: auth.enabled=true but ingress.enabled=false — enable the ingress so the
+  portal and forward-auth can be reached.
+  {{- end }}
+  {{- if not .Values.auth.trustedProxies }}
+
+  WARNING: auth.trustedProxies is empty — the landing app will trust identity
+  headers from ANY source. Set it to your ingress controller's pod CIDR.
+  {{- end }}
+  {{- if not .Values.auth.authelia.secrets.existingSecret }}
+
+  WARNING: using placeholder Authelia secrets and the sample admin user. Override
+  auth.authelia.secrets.* and auth.authelia.users before exposing SUS.
+  {{- end }}
+{{- end }}

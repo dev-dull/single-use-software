@@ -45,3 +45,18 @@ Selector labels.
 app.kubernetes.io/name: {{ include "sus.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
+
+{{/*
+Authelia resource name.
+*/}}
+{{- define "sus.authelia.fullname" -}}
+{{- printf "%s-authelia" (include "sus.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+In-cluster URL of the Authelia service (used by forward-auth wiring the operator
+adds at their own ingress controller).
+*/}}
+{{- define "sus.authelia.serviceUrl" -}}
+{{- printf "http://%s.%s.svc.cluster.local:9091" (include "sus.authelia.fullname" .) .Values.namespaces.platform }}
+{{- end }}

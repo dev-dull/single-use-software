@@ -58,13 +58,17 @@ class AnalyticsMiddleware(BaseHTTPMiddleware):
                 event_type = "catalog_view"
 
             if event_type is not None:
-                # Extract user identity — best-effort.
+                # Extract user identity — best-effort. This middleware runs
+                # before route dependencies, so resolve directly (and cache on
+                # request.state for anything downstream).
                 user_id = "anonymous"
                 try:
-                    # Try reading from request state set by identity middleware.
                     identity = getattr(request.state, "identity", None)
-                    if identity is not None:
-                        user_id = getattr(identity, "user_id", "anonymous") or "anonymous"
+                    if identity is None:
+                        from .deps import get_identity_provider
+                        identity = await get_identity_provider().resolve(request)
+                        request.state.identity = identity
+                    user_id = getattr(identity, "id", "anonymous") or "anonymous"
                 except Exception:
                     pass
 

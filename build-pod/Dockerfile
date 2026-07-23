@@ -42,9 +42,6 @@ RUN pip install --no-cache-dir \
 # Create working directory
 RUN mkdir -p /repo/claude/skills
 
-# Copy CLAUDE.md with read-only permissions
-COPY build-pod/CLAUDE.md /repo/claude/CLAUDE.md
-RUN chmod 444 /repo/claude/CLAUDE.md
 
 # Copy skill definitions with read-only permissions
 COPY build-pod/claude/skills/ /repo/claude/skills/
@@ -58,7 +55,14 @@ ENV PATH="/home/sus/.local/bin:${PATH}"
 # - ~/.claude/settings.json: disable auto-updater
 # - ~/.claude.json: mark onboarding complete, trust /repo folder,
 #   accept bypass mode, skip all first-run dialogs
-RUN mkdir -p /home/sus/.claude && \
+# Platform instructions live at Claude Code's user-memory location so they are
+# auto-loaded for every session regardless of cwd. (A file under /repo is NOT
+# auto-discovered: Claude Code only walks the cwd's ancestor chain, and the
+# session cwd /repo/{team}/{app} never passes through /repo/claude/. Keeping it
+# out of /repo also keeps platform instructions out of the user's git repo.)
+COPY build-pod/CLAUDE.md /home/sus/.claude/CLAUDE.md
+
+RUN chmod 444 /home/sus/.claude/CLAUDE.md && \
     echo '{"autoUpdaterStatus":"disabled","defaultMode":"bypassPermissions"}' > /home/sus/.claude/settings.json && \
     echo '{ \
       "numStartups": 100, \
