@@ -37,7 +37,7 @@ data:
         # Authelia requires the portal URL to use https (secure scheme); serve
         # auth.<domain> behind TLS at the ingress (ingress.tls).
         - domain: {{ .Values.auth.domain | quote }}
-          authelia_url: {{ printf "https://auth.%s" .Values.auth.domain | quote }}
+          authelia_url: {{ .Values.auth.portalUrl | default (printf "https://auth.%s" .Values.auth.domain) | quote }}
     regulation:
       max_retries: 3
       find_time: 2m

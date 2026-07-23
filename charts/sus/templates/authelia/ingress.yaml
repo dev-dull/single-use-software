@@ -9,7 +9,10 @@ metadata:
   labels:
     {{- include "sus.labels" . | nindent 4 }}
     app.kubernetes.io/component: authelia
-  {{- with .Values.ingress.annotations }}
+  {{- with .Values.auth.portalIngress.annotations }}
+  # Deliberately independent of ingress.annotations: forward-auth annotations
+  # the operator adds to gate the app must never be applied to the login portal
+  # itself (that would create an infinite redirect loop).
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}

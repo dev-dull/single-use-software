@@ -17,6 +17,13 @@ spec:
       labels:
         {{- include "sus.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: landing
+      {{- if .Values.auth.enabled }}
+      annotations:
+        # Roll the deployment whenever the identity config changes — the app
+        # reads sus_config.json at startup, so a stale pod would silently keep
+        # the old trusted-proxy set.
+        checksum/landing-config: {{ include (print $.Template.BasePath "/landing-config.yaml") . | sha256sum }}
+      {{- end }}
     spec:
       serviceAccountName: {{ .Values.landing.serviceAccount.name }}
       containers:
