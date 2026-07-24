@@ -49,6 +49,40 @@ class GitWorkflowManager:
             return info
         return None
 
+    def resolve_pod_ip(self, user_id: str, app_slug: str) -> str | None:
+        """Return the current build pod IP for a session, or None.
+
+        Resolves the pod from the session store rather than trusting a
+        client-supplied value, so the address is always current (survives pod
+        churn) and cannot be forged by the caller (see #80). Returns None when
+        there is no session or the pod is gone / not yet scheduled with an IP.
+        """
+        session = self._sessions.get(user_id, app_slug)
+        if session is None:
+            return None
+        info = self._pod_is_running(session["pod_name"])
+        if info is None:
+            return None
+        return info.get("pod_ip") or None
+
+    @staticmethod
+    def is_terminal_ready(pod_ip: str) -> bool:
+        """Return True if ttyd is actually serving on the pod's terminal port.
+
+        Container-Ready is not enough: the pod may be scheduled with an IP
+        while ttyd is still starting (and the repo cloning). A 200 from
+        ``:8080`` means the terminal is live and safe to show.
+        """
+        if not pod_ip:
+            return False
+        try:
+            import httpx
+            with httpx.Client(timeout=2.0) as client:
+                resp = client.get(f"http://{pod_ip}:8080/")
+            return resp.status_code == 200
+        except Exception:
+            return False
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
