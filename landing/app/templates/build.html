@@ -284,18 +284,30 @@
       setTimeout(_initialGate, 2000);
     }
 
-    // After first load, watch for pod churn: if the pod is replaced/gone the
-    // terminal goes dead, so overlay + reconnect once it's serving again.
+    // After first load, watch for pod churn. A brief not-ready blip just shows
+    // the overlay and reconnects when it clears. Sustained not-ready means the
+    // pod is gone (not merely restarting ttyd) — a full reload re-enters
+    // build_ui, which recreates the session's pod on the same branch.
+    let _notReadyStreak = 0;
     function _startHealthWatch() {
       setInterval(async () => {
         const ready = await _isReady();
-        if (!ready && !_reconnecting) {
-          _reconnecting = true;
-          _showTermOverlay('Reconnecting…', 'Your workspace is restarting.');
-        } else if (ready && _reconnecting) {
-          _reconnecting = false;
-          _loadTerminal();
-          _hideTermOverlay();
+        if (!ready) {
+          _notReadyStreak++;
+          if (!_reconnecting) {
+            _reconnecting = true;
+            _showTermOverlay('Reconnecting…', 'Your workspace is restarting.');
+          }
+          if (_notReadyStreak >= 3) {  // ~15s gone -> recreate via reload
+            window.location.reload();
+          }
+        } else {
+          _notReadyStreak = 0;
+          if (_reconnecting) {
+            _reconnecting = false;
+            _loadTerminal();
+            _hideTermOverlay();
+          }
         }
       }, 5000);
     }
