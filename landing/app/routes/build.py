@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, Query, Request, WebSocket
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
-from ..deps import resolve_identity
+from ..deps import get_identity_provider, resolve_identity
 from ..git_workflow import GitWorkflowManager
 from ..identity import UserIdentity
 from ..pods import BuildPodManager
@@ -56,37 +56,25 @@ async def build_ui(
     request: Request,
     team: str,
     app_slug: str,
-    pod_ip: str = Query("", alias="pod_ip"),
     app_name: str = Query("", alias="app_name"),
     app_description: str = Query("", alias="app_description"),
     identity: UserIdentity = Depends(resolve_identity),
 ) -> HTMLResponse:
     """Render the build-mode UI with terminal and preview panes.
 
-    If no *pod_ip* is provided, start (or resume) a session so the user always
-    lands on a running build pod.
+    Starts (or resumes) a session so a build pod is spinning up, then renders
+    immediately. The page shows a loading overlay and polls ``/status`` until
+    the terminal is actually serving, so we never block the request on pod
+    readiness and never bake a (soon-stale) pod IP into the page.
     """
-    if not pod_ip:
-        try:
-            wf = _get_workflow()
-            user_id = identity.id
-            info = wf.start_session(
-                user_id=user_id, team=team, app_slug=app_slug,
-                app_name=app_name, app_description=app_description,
-            )
-            pod_ip = info.get("pod_ip") or ""
-
-            # Pod may still be scheduling — poll briefly for an IP.
-            if not pod_ip and info.get("pod_name"):
-                for _ in range(10):
-                    await asyncio.sleep(2)
-                    pod_info = wf._pods.get_build_pod(info["pod_name"])
-                    if pod_info and pod_info.get("pod_ip"):
-                        pod_ip = pod_info["pod_ip"]
-                        break
-        except Exception:
-            logger.exception("Failed to start build session for %s/%s", team, app_slug)
-            pod_ip = ""
+    try:
+        wf = _get_workflow()
+        wf.start_session(
+            user_id=identity.id, team=team, app_slug=app_slug,
+            app_name=app_name, app_description=app_description,
+        )
+    except Exception:
+        logger.exception("Failed to start build session for %s/%s", team, app_slug)
 
     return _templates.TemplateResponse(
         request,
@@ -94,9 +82,28 @@ async def build_ui(
         context={
             "team": team,
             "app_slug": app_slug,
-            "pod_ip": pod_ip,
         },
     )
+
+
+@router.get("/{team}/{app_slug}/status")
+async def build_status(
+    team: str,
+    app_slug: str,
+    identity: UserIdentity = Depends(resolve_identity),
+) -> JSONResponse:
+    """Report whether the session's build pod terminal is ready to display.
+
+    ``ready`` is true only when the pod is running *and* ttyd answers on its
+    terminal port. The pod IP is intentionally never returned — the front-end
+    addresses the pod only through server-resolved proxy routes (see #80).
+    """
+    wf = _get_workflow()
+    pod_ip = wf.resolve_pod_ip(identity.id, app_slug)
+    if not pod_ip:
+        return JSONResponse({"ready": False, "phase": "starting"})
+    ready = await asyncio.to_thread(wf.is_terminal_ready, pod_ip)
+    return JSONResponse({"ready": ready, "phase": "running" if ready else "starting"})
 
 
 # ---------------------------------------------------------------------------
@@ -108,7 +115,6 @@ async def build_ui(
 async def build_heartbeat(
     team: str,
     app_slug: str,
-    pod_ip: str = Query("", alias="pod_ip"),
     identity: UserIdentity = Depends(resolve_identity),
 ) -> JSONResponse:
     """Heartbeat endpoint to keep the build pod alive."""
@@ -128,7 +134,6 @@ async def build_heartbeat(
 async def build_save(
     team: str,
     app_slug: str,
-    pod_ip: str = Query("", alias="pod_ip"),
     identity: UserIdentity = Depends(resolve_identity),
 ) -> JSONResponse:
     """Trigger a named save (git commit) in the build pod."""
@@ -146,7 +151,6 @@ async def build_save(
 async def build_publish(
     team: str,
     app_slug: str,
-    pod_ip: str = Query("", alias="pod_ip"),
     identity: UserIdentity = Depends(resolve_identity),
 ) -> JSONResponse:
     """Trigger a publish (PR creation) in the build pod."""
@@ -187,26 +191,36 @@ async def build_stop(
 # ---------------------------------------------------------------------------
 
 
-@router.websocket("/{team}/{app_slug}/ws")
-async def build_ws(
-    websocket: WebSocket,
-    team: str,
-    app_slug: str,
-    pod_ip: str = Query(..., alias="pod_ip"),
-) -> None:
-    """Proxy WebSocket traffic to ttyd running in the build pod."""
+async def _resolve_pod_ip_ws(websocket: WebSocket, app_slug: str) -> str | None:
+    """Resolve the session's current pod IP for a WebSocket request.
+
+    ``resolve`` only reads ``.headers``/``.client``, both of which a Starlette
+    ``WebSocket`` provides, so the same identity provider works here.
+    """
+    identity = await get_identity_provider().resolve(websocket)
+    return _get_workflow().resolve_pod_ip(identity.id, app_slug)
+
+
+async def _proxy_terminal_ws(websocket: WebSocket, app_slug: str) -> None:
+    pod_ip = await _resolve_pod_ip_ws(websocket, app_slug)
+    if not pod_ip:
+        # Pod not ready / gone — reject with "try again later" so the client
+        # can reconnect once /status reports ready.
+        await websocket.close(code=1013)
+        return
     await ws_proxy(websocket, pod_ip=pod_ip, pod_port=8080)
+
+
+@router.websocket("/{team}/{app_slug}/ws")
+async def build_ws(websocket: WebSocket, team: str, app_slug: str) -> None:
+    """Proxy WebSocket traffic to ttyd running in the build pod."""
+    await _proxy_terminal_ws(websocket, app_slug)
 
 
 @router.websocket("/{team}/{app_slug}/terminal/ws")
-async def build_terminal_ws(
-    websocket: WebSocket,
-    team: str,
-    app_slug: str,
-    pod_ip: str = Query(..., alias="pod_ip"),
-) -> None:
+async def build_terminal_ws(websocket: WebSocket, team: str, app_slug: str) -> None:
     """Proxy ttyd WebSocket (ttyd JS connects to basePath/ws)."""
-    await ws_proxy(websocket, pod_ip=pod_ip, pod_port=8080)
+    await _proxy_terminal_ws(websocket, app_slug)
 
 
 # ---------------------------------------------------------------------------
@@ -219,9 +233,12 @@ async def build_terminal_token(
     request: Request,
     team: str,
     app_slug: str,
-    pod_ip: str = Query(..., alias="pod_ip"),
+    identity: UserIdentity = Depends(resolve_identity),
 ) -> Response:
     """Proxy ttyd token endpoint."""
+    pod_ip = _get_workflow().resolve_pod_ip(identity.id, app_slug)
+    if not pod_ip:
+        return Response(status_code=503, content="build pod not ready")
     return await http_proxy(request, pod_ip=pod_ip, pod_port=8080, path="/token")
 
 
@@ -231,9 +248,12 @@ async def build_terminal(
     team: str,
     app_slug: str,
     path: str,
-    pod_ip: str = Query(..., alias="pod_ip"),
+    identity: UserIdentity = Depends(resolve_identity),
 ) -> Response:
     """Proxy HTTP requests to ttyd's web UI (HTML, JS, CSS assets)."""
+    pod_ip = _get_workflow().resolve_pod_ip(identity.id, app_slug)
+    if not pod_ip:
+        return Response(status_code=503, content="build pod not ready")
     return await http_proxy(
         request,
         pod_ip=pod_ip,
@@ -251,10 +271,11 @@ async def build_terminal(
 async def build_preview_hash(
     team: str,
     app_slug: str,
-    pod_ip: str = Query("", alias="pod_ip"),
+    identity: UserIdentity = Depends(resolve_identity),
 ) -> JSONResponse:
     """Return a hash of the preview content for change detection."""
     import hashlib
+    pod_ip = _get_workflow().resolve_pod_ip(identity.id, app_slug)
     if not pod_ip:
         return JSONResponse({"hash": ""})
     try:
@@ -275,10 +296,10 @@ async def build_preview(
     team: str,
     app_slug: str,
     path: str,
-    pod_ip: str = Query("", alias="pod_ip"),
     identity: UserIdentity = Depends(resolve_identity),
 ) -> Response:
     """Proxy HTTP requests to the build pod's app preview server."""
+    pod_ip = _get_workflow().resolve_pod_ip(identity.id, app_slug)
     if pod_ip:
         resp = await http_proxy(
             request, pod_ip=pod_ip, pod_port=3000, path=f"/{path}",

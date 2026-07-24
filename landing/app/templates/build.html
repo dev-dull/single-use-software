@@ -5,9 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤨</text></svg>" />
   <title>Build: {{ team }}/{{ app_slug }}</title>
-  {% if not pod_ip %}
-  <meta http-equiv="refresh" content="3" />
-  {% endif %}
 
   <style>
     :root {
@@ -165,6 +162,32 @@
       color: var(--text-secondary);
       font-size: 14px;
     }
+
+    /* Loading / reconnecting overlay over the terminal pane */
+    .term-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-primary);
+      color: var(--text-secondary);
+      z-index: 5;
+      transition: opacity 0.25s;
+    }
+    .term-overlay.hidden { opacity: 0; pointer-events: none; }
+    .term-overlay .wrap { text-align: center; }
+    .term-overlay .spinner {
+      width: 34px; height: 34px; margin: 0 auto 1rem;
+      border: 3px solid var(--border-color);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: term-spin 0.8s linear infinite;
+    }
+    .term-overlay p { font-size: 14px; margin: 0.3rem 0 0; }
+    .term-overlay .sub { font-size: 12px; color: var(--text-secondary); opacity: 0.75; }
+    @keyframes term-spin { to { transform: rotate(360deg); } }
+    .terminal-pane { position: relative; }
   </style>
 </head>
 <body>
@@ -183,12 +206,16 @@
   <div class="panes">
     <div class="terminal-pane" id="terminal-pane">
       <div class="terminal-pane-header">Terminal</div>
-      {% if pod_ip %}
-      <iframe class="terminal-iframe"
-              src="/build/{{ team }}/{{ app_slug }}/terminal/?pod_ip={{ pod_ip }}"></iframe>
-      {% else %}
-      <div class="status-msg">Waiting for build pod to start...</div>
-      {% endif %}
+      <!-- src is set by JS only once /status reports the terminal is ready,
+           so we never show a black ttyd frame during pod startup. -->
+      <iframe class="terminal-iframe" id="terminal-iframe"></iframe>
+      <div class="term-overlay" id="term-overlay">
+        <div class="wrap">
+          <div class="spinner"></div>
+          <p id="term-overlay-msg">Starting your workspace…</p>
+          <p class="sub" id="term-overlay-sub">This can take a moment the first time.</p>
+        </div>
+      </div>
     </div>
     <div class="divider" id="divider"></div>
     <div class="preview-pane" id="preview-pane">
@@ -197,15 +224,95 @@
         <button class="btn-refresh" id="btn-refresh" onclick="refreshPreview()">&#x21bb; Refresh Preview</button>
       </div>
       <iframe id="preview-iframe"
-              src="/build/{{ team }}/{{ app_slug }}/preview/?pod_ip={{ pod_ip }}"></iframe>
+              src="/build/{{ team }}/{{ app_slug }}/preview/"></iframe>
     </div>
   </div>
 
   <script>
     const TEAM = "{{ team }}";
     const APP_SLUG = "{{ app_slug }}";
-    const POD_IP = "{{ pod_ip }}";
     const BASE = `/build/${TEAM}/${APP_SLUG}`;
+
+    // --- Terminal readiness gate + churn recovery ---
+    // The server resolves the current build pod for every request, so the
+    // front-end never holds a pod IP. We gate the terminal iframe behind a
+    // loading overlay until /status reports ttyd is actually serving, and
+    // watch for the pod being replaced so we can reconnect automatically.
+    const termIframe = document.getElementById('terminal-iframe');
+    const termOverlay = document.getElementById('term-overlay');
+    const termOverlayMsg = document.getElementById('term-overlay-msg');
+    const termOverlaySub = document.getElementById('term-overlay-sub');
+    const TERMINAL_SRC = `${BASE}/terminal/`;
+    let _terminalLoaded = false;
+    let _reconnecting = false;
+
+    function _showTermOverlay(msg, sub) {
+      termOverlayMsg.textContent = msg;
+      termOverlaySub.textContent = sub || '';
+      termOverlay.classList.remove('hidden');
+    }
+    function _hideTermOverlay() { termOverlay.classList.add('hidden'); }
+
+    function _loadTerminal() {
+      // Cache-bust so a reconnect re-fetches through the (now re-resolved) proxy.
+      termIframe.src = `${TERMINAL_SRC}?t=${Date.now()}`;
+    }
+
+    async function _isReady() {
+      try {
+        const resp = await fetch(`${BASE}/status`, { cache: 'no-store' });
+        if (!resp.ok) return false;
+        const data = await resp.json();
+        return !!data.ready;
+      } catch (e) { return false; }
+    }
+
+    // Poll until the terminal is ready, then load it and start watching health.
+    let _gateWaits = 0;
+    async function _initialGate() {
+      if (await _isReady()) {
+        _loadTerminal();
+        _terminalLoaded = true;
+        _hideTermOverlay();
+        _startHealthWatch();
+        return;
+      }
+      _gateWaits++;
+      if (_gateWaits === 8) {  // ~16s in — reassure on a slow cold start
+        _showTermOverlay('Still starting…', 'First run pulls the workspace image; hang tight.');
+      }
+      setTimeout(_initialGate, 2000);
+    }
+
+    // After first load, watch for pod churn. A brief not-ready blip just shows
+    // the overlay and reconnects when it clears. Sustained not-ready means the
+    // pod is gone (not merely restarting ttyd) — a full reload re-enters
+    // build_ui, which recreates the session's pod on the same branch.
+    let _notReadyStreak = 0;
+    function _startHealthWatch() {
+      setInterval(async () => {
+        const ready = await _isReady();
+        if (!ready) {
+          _notReadyStreak++;
+          if (!_reconnecting) {
+            _reconnecting = true;
+            _showTermOverlay('Reconnecting…', 'Your workspace is restarting.');
+          }
+          if (_notReadyStreak >= 3) {  // ~15s gone -> recreate via reload
+            window.location.reload();
+          }
+        } else {
+          _notReadyStreak = 0;
+          if (_reconnecting) {
+            _reconnecting = false;
+            _loadTerminal();
+            _hideTermOverlay();
+          }
+        }
+      }, 5000);
+    }
+
+    _initialGate();
 
     // --- Resizable divider ---
     const divider = document.getElementById('divider');
@@ -244,9 +351,7 @@
 
     // --- Heartbeat ---
     setInterval(() => {
-      fetch(`${BASE}/heartbeat?pod_ip=${encodeURIComponent(POD_IP)}`, {
-        method: 'POST',
-      }).catch(() => {});
+      fetch(`${BASE}/heartbeat`, { method: 'POST' }).catch(() => {});
     }, 30000);
 
     // --- Save / Publish ---
@@ -254,14 +359,17 @@
       const btn = document.getElementById('btn-save');
       btn.disabled = true;
       try {
-        const resp = await fetch(`${BASE}/save?pod_ip=${encodeURIComponent(POD_IP)}`, { method: 'POST' });
+        const resp = await fetch(`${BASE}/save`, { method: 'POST' });
         const data = await resp.json();
-        if (data.status === 'save_requested') {
+        if (data.status === 'saved') {
           btn.textContent = 'Saved!';
           setTimeout(() => { btn.textContent = 'Save'; }, 2000);
+        } else if (data.status === 'error') {
+          _showToast('Save failed: ' + (data.detail || 'please try again.'), 'error');
         }
       } catch (err) {
         console.error('Save failed:', err);
+        _showToast('Save failed — please try again.', 'error');
       } finally {
         btn.disabled = false;
       }
@@ -280,7 +388,7 @@
     let _lastHash = '';
     setInterval(async () => {
       try {
-        const resp = await fetch(`${BASE}/preview-hash?pod_ip=${encodeURIComponent(POD_IP)}`);
+        const resp = await fetch(`${BASE}/preview-hash`);
         const data = await resp.json();
         if (data.hash && data.hash !== _lastHash) {
           if (_lastHash !== '') {
@@ -334,7 +442,7 @@
       btn.disabled = true;
       btn.textContent = 'Publishing...';
       try {
-        const resp = await fetch(`${BASE}/publish?pod_ip=${encodeURIComponent(POD_IP)}`, { method: 'POST' });
+        const resp = await fetch(`${BASE}/publish`, { method: 'POST' });
         const data = await resp.json();
         if (data.status === 'publish_requested') {
           btn.textContent = 'Published!';
