@@ -1,0 +1,58 @@
+name: Claude PR Review
+
+# Automatically reviews every pull request when it's opened or updated.
+# Requires a repository secret named ANTHROPIC_API_KEY
+#   (Settings → Secrets and variables → Actions → New repository secret).
+# Note: this does not run on PRs from forks — GitHub withholds secrets from
+# fork workflows, so only PRs from branches in this repo are reviewed.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# One review per PR ref; cancel a superseded run when new commits land.
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    # Skip drafts — review once it's marked ready.
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          track_progress: true
+          prompt: |
+            Review this pull request. SUS is a self-hosted platform that runs
+            Claude Code in per-session Kubernetes pods, so weigh these areas:
+
+            - Correctness and likely bugs in the changed code.
+            - Security, especially the app→platform trust boundary: identity /
+              trusted-proxy handling (landing/app/identity.py, deps.py, proxy.py),
+              anything that reads client-supplied values (headers, pod_ip, query
+              params), secret handling, and shell injection in build-pod/*.sh.
+            - Helm chart correctness (charts/sus/): template rendering, values
+              wiring, and that changes stay backward-compatible when auth is off.
+            - Test coverage gaps for the above.
+
+            Prioritize a small number of high-confidence, actionable findings over
+            exhaustiveness. Match the repo's existing style; don't nitpick
+            formatting. If the PR looks good, say so briefly.
+
+            Post specific issues as inline comments on the relevant lines using
+            mcp__github_inline_comment__create_inline_comment (with confirmed: true),
+            and leave one short summary comment via `gh pr comment`.
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
