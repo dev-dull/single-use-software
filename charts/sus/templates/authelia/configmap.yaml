@@ -12,9 +12,13 @@ metadata:
     app.kubernetes.io/component: authelia
 data:
   configuration.yml: |
-    theme: light
+    theme: {{ .Values.auth.authelia.branding.theme | default "light" }}
     server:
       address: 'tcp://:9091'
+      {{- if .Values.auth.authelia.branding.enabled }}
+      # Override the portal logo/favicon and text (see the -assets ConfigMap).
+      asset_path: /config/assets
+      {{- end }}
     log:
       level: info
     totp:

@@ -27,6 +27,9 @@ spec:
         # used — rotate/roll that yourself.)
         checksum/authelia-config: {{ include (print $.Template.BasePath "/authelia/configmap.yaml") . | sha256sum }}
         checksum/authelia-secret: {{ include (print $.Template.BasePath "/authelia/secret.yaml") . | sha256sum }}
+        {{- if .Values.auth.authelia.branding.enabled }}
+        checksum/authelia-assets: {{ include (print $.Template.BasePath "/authelia/assets-configmap.yaml") . | sha256sum }}
+        {{- end }}
     spec:
       containers:
         - name: authelia
@@ -76,10 +79,23 @@ spec:
               readOnly: true
             - name: data
               mountPath: /data
+            {{- if .Values.auth.authelia.branding.enabled }}
+            # subPath mount places the logo into the asset tree
+            # (server.asset_path = /config/assets) without shadowing the rest of it.
+            - name: assets
+              mountPath: /config/assets/logo.png
+              subPath: logo.png
+              readOnly: true
+            {{- end }}
       volumes:
         - name: config
           configMap:
             name: {{ include "sus.authelia.fullname" . }}
+        {{- if .Values.auth.authelia.branding.enabled }}
+        - name: assets
+          configMap:
+            name: {{ include "sus.authelia.fullname" . }}-assets
+        {{- end }}
         - name: users
           secret:
             secretName: {{ $secretName }}

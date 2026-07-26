@@ -1,0 +1,14 @@
+{{- if and .Values.auth.enabled .Values.auth.authelia.branding.enabled }}
+# Authelia server-asset override mounted at server.asset_path (/config/assets):
+#   logo.png -> the login-portal logo (replaces Authelia's default icon)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sus.authelia.fullname" . }}-assets
+  namespace: {{ .Values.namespaces.platform }}
+  labels:
+    {{- include "sus.labels" . | nindent 4 }}
+    app.kubernetes.io/component: authelia
+binaryData:
+  logo.png: {{ .Values.auth.authelia.branding.logoPngBase64 | default (.Files.Get "assets/logo.png" | b64enc) }}
+{{- end }}
