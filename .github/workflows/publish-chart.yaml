@@ -20,6 +20,10 @@ jobs:
 
       - name: Install Helm
         uses: azure/setup-helm@v4
+        with:
+          # Pinned; keep in sync with claude-review.yaml so the helm that
+          # reviews the chart is the same one that packages/publishes it.
+          version: v4.2.3
 
       - name: Set chart version from tag
         run: |
