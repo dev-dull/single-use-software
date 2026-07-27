@@ -66,7 +66,10 @@ jobs:
               params), secret handling, and shell injection in build-pod/*.sh.
             - Helm chart correctness (charts/sus/): when the chart changed, render
               it with `helm template` (both auth on and off) and check values
-              wiring and that auth-off output is unchanged.
+              wiring. For auth-off, confirm the render contains no Authelia/auth
+              resources so the feature stays opt-in. (Comparing against the base
+              branch isn't available here — reason from the head render plus the
+              PR diff.)
             - Test coverage gaps for the above.
 
             Prioritize a small number of high-confidence, actionable findings over
