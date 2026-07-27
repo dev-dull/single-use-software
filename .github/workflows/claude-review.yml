@@ -33,6 +33,10 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Use the workflow's built-in token instead of the Claude GitHub App,
+          # so no app install is needed. GITHUB_TOKEN inherits the permissions
+          # block above (pull-requests/issues: write) for posting comments.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           track_progress: true
           prompt: |
             Review this pull request. SUS is a self-hosted platform that runs
