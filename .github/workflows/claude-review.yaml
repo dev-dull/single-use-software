@@ -37,10 +37,15 @@ jobs:
         with:
           fetch-depth: 1
 
-      # Pin helm via the same action publish-chart.yaml uses, so the version
-      # that reviews the chart matches the one that ships it (avoids drift from
-      # relying on whatever helm the runner image happens to bundle).
+      # Install helm explicitly (same action publish-chart.yaml uses) and pin it.
+      # Two reasons to pin rather than let it default to `latest`: (1) the chart
+      # rendering here shouldn't shift under a future helm release, and (2) helm
+      # 4.x closes the `--post-renderer` arbitrary-executable path that in helm 3
+      # was a clean escape from the `Bash(helm template:*)` allowlist. Keep this
+      # version in sync with publish-chart.yaml.
       - uses: azure/setup-helm@v4
+        with:
+          version: v4.2.3
 
       - uses: anthropics/claude-code-action@v1
         with:
