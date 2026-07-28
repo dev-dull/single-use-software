@@ -111,6 +111,16 @@ auth:
       # Pinned minor tag — Authelia's config schema is version-sensitive.
       tag: "4.38"
       pullPolicy: IfNotPresent
+    # -- Login-portal branding. Replaces Authelia's default icon with the SUS 🤨
+    # logo by default; the rest of the portal (including the "Sign in" text) is
+    # left as Authelia ships it.
+    branding:
+      enabled: true
+      # Portal color scheme: light | dark | grey | auto.
+      theme: light
+      # -- Override the bundled 🤨 logo with your own PNG (base64-encoded, e.g.
+      # `base64 -i logo.png`). Empty = use the bundled SUS logo.
+      logoPngBase64: ""
     # Memory limit must accommodate argon2id password verification, which is
     # memory-hard by design (default parameters use 64MiB per concurrent login)
     # on top of Authelia's baseline — too low a limit OOM-kills the container
