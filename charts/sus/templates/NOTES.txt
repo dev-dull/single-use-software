@@ -11,6 +11,12 @@ To access the landing page locally, run:
   kubectl port-forward -n {{ .Values.namespaces.platform }} svc/{{ include "sus.fullname" . }}-landing {{ .Values.service.port }}:{{ .Values.service.port }}
 
 Then open http://localhost:{{ .Values.service.port }} in your browser.
+
+Build sessions use the "{{ .Values.buildPod.claudeModel }}" Claude model.
+{{- if eq .Values.buildPod.claudeModel "opus" }}
+  This is Claude Opus 5 — best build quality, but ~2.5x the per-token cost of
+  "sonnet" and a bit slower. Set --set buildPod.claudeModel=sonnet to lower cost.
+{{- end }}
 {{- if .Values.auth.enabled }}
 
 Authentication (Authelia) is ENABLED. The chart deploys Authelia and switches the
