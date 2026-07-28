@@ -126,11 +126,13 @@ SUS can be configured two ways:
 | App repo URL | `/setup` | `--set gitRepo.url=...` |
 | Anthropic API key | `/setup` | K8s secret `sus-anthropic-api-key` |
 | Git access token | `/setup` | K8s secret `sus-git-token` |
-| Claude model for build sessions | — | `--set buildPod.claudeModel=sonnet` (aliases like `sonnet`/`opus`/`haiku` track the latest model; a full ID pins one) |
+| Claude model for build sessions | — | `--set buildPod.claudeModel=opus` (default; aliases like `opus`/`sonnet`/`haiku` track the latest model, a full ID pins one — see note below) |
 | Build pod resources | — | `buildPod.resources` in `values.yaml` |
 | Landing page resources | — | `landing.resources` in `values.yaml` |
 
 See [`charts/sus/values.yaml`](charts/sus/values.yaml) for all Helm values.
+
+**Build-session model:** the default is `opus` (Claude Opus 5) — Anthropic's recommended model for agentic coding, so the best build quality. It costs roughly **2.5× more per token** than `sonnet` and responds a bit slower. If you'd rather trade some build quality for lower cost and faster responses, set `--set buildPod.claudeModel=sonnet` (Claude Sonnet 5). Aliases track the latest model in each family; pass a full ID like `claude-opus-5` to pin a version.
 
 ### Ingress
 

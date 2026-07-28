@@ -35,10 +35,14 @@ buildPod:
     repository: ghcr.io/dev-dull/sus-build
     tag: latest
     pullPolicy: Always
-  # -- Claude model for build sessions. Aliases like "sonnet", "opus", and
+  # -- Claude model for build sessions. Aliases like "opus", "sonnet", and
   # "haiku" resolve to the latest model in that family; a full model ID
-  # (e.g. "claude-sonnet-5") pins a specific version.
-  claudeModel: sonnet
+  # (e.g. "claude-opus-5") pins a specific version.
+  # Default "opus" (Claude Opus 5) — Anthropic's recommended model for agentic
+  # coding, i.e. the best build quality. It costs ~2.5x more per token than
+  # "sonnet" and is a bit slower; set claudeModel: sonnet to trade some build
+  # quality for lower cost and faster responses.
+  claudeModel: opus
   ports:
     terminal: 8080
     preview: 3000
