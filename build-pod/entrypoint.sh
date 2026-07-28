@@ -70,8 +70,13 @@ fi
 APP_DIR="/repo/${APP_TEAM:-_new}/${APP_SLUG:-_new}"
 mkdir -p "$APP_DIR"
 
-# If this is a new app, create a minimal sus.json.
+# If this is a new app, create a minimal sus.json. The absence of sus.json is
+# also our "brand-new app" signal (an existing app's clone brings its own down),
+# and it's restart-safe: a recreated pod re-clones the now-committed scaffold, so
+# NEW_APP reads 0 and we don't re-kick a build on restart.
+NEW_APP=0
 if [ ! -f "$APP_DIR/sus.json" ]; then
+    NEW_APP=1
     cat > "$APP_DIR/sus.json" <<SUSJSON
 {
   "name": "${APP_NAME:-New App}",
@@ -257,5 +262,26 @@ with open(path, "w") as f:
     json.dump(data, f)
 PYEOF
 
-exec ttyd --port 8080 --writable --base-path / \
-    bash -c "cd '$APP_DIR' && exec claude --dangerously-skip-permissions --model '${CLAUDE_MODEL:-opus}'"
+# For a brand-new app with a description, seed an initial prompt so Claude
+# starts building to spec on the first turn — otherwise the form description
+# only reaches the session as an env var the CLAUDE.md *asks* Claude to read,
+# which isn't guaranteed. Gated to NEW_APP: an existing-app "Build" session
+# must NOT be auto-kicked — its sus.json description may be stale and the user
+# is about to say what they want.
+#
+# The description is untrusted user input, so it is passed via an exported env
+# var and expanded by the INNER shell as a single quoted argument (note the
+# escaped \$SUS_INITIAL_PROMPT). It is never spliced into the command string,
+# so it cannot break quoting or inject shell.
+if [ "${NEW_APP:-0}" = "1" ] && [ -n "${APP_DESCRIPTION:-}" ]; then
+    export SUS_INITIAL_PROMPT="Build this app now and show it in the preview pane on the right. Here is what it should do:
+
+${APP_DESCRIPTION}
+
+Create the initial working version straight away, then tell me it's ready."
+    exec ttyd --port 8080 --writable --base-path / \
+        bash -c "cd '$APP_DIR' && exec claude --dangerously-skip-permissions --model '${CLAUDE_MODEL:-opus}' \"\$SUS_INITIAL_PROMPT\""
+else
+    exec ttyd --port 8080 --writable --base-path / \
+        bash -c "cd '$APP_DIR' && exec claude --dangerously-skip-permissions --model '${CLAUDE_MODEL:-opus}'"
+fi

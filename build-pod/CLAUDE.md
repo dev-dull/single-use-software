@@ -61,7 +61,10 @@ Check these environment variables for context about what you're building:
 - `APP_NAME` — the human-readable app name (if set)
 - `APP_DESCRIPTION` — what the app should do (if set)
 
-If `APP_DESCRIPTION` is set, use it as your starting context. The user expects the app to match this description. If the current state of the app doesn't match, proactively offer to fix it.
+If `APP_DESCRIPTION` is set, treat it as helpful background about what the app was originally meant to do.
+
+- **Brand-new app:** you'll receive an initial instruction to build it — follow that and get a working first version into the preview right away.
+- **Existing app you're resuming:** the description may be the *original* spec, and the app may have intentionally moved on from it. Don't assume any difference is a mistake, and don't start changing things unprompted. Wait for the user to tell you what they want; only offer to align the app with the description if it seems genuinely relevant.
 
 ---
 
