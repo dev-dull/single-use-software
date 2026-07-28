@@ -99,7 +99,7 @@ class BuildPodManager:
                             client.V1EnvVar(name="SUS_API_URL", value="http://sus-landing.sus.svc.cluster.local"),
                             client.V1EnvVar(
                                 name="CLAUDE_MODEL",
-                                value=os.environ.get("SUS_CLAUDE_MODEL", "sonnet"),
+                                value=os.environ.get("SUS_CLAUDE_MODEL", "opus"),
                             ),
                             client.V1EnvVar(
                                 name="ANTHROPIC_API_KEY",

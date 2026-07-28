@@ -12,7 +12,7 @@ set -euo pipefail
 #   APP_TEAM        — the team this app belongs to
 #   APP_SLUG        — the app's short name
 #   ANTHROPIC_API_KEY — API key for Claude Code
-#   CLAUDE_MODEL    — Claude model for the session (default: sonnet)
+#   CLAUDE_MODEL    — Claude model for the session (default: opus)
 # ---------------------------------------------------------------------------
 
 # --- Git configuration ----------------------------------------------------
@@ -258,4 +258,4 @@ with open(path, "w") as f:
 PYEOF
 
 exec ttyd --port 8080 --writable --base-path / \
-    bash -c "cd '$APP_DIR' && exec claude --dangerously-skip-permissions --model '${CLAUDE_MODEL:-sonnet}'"
+    bash -c "cd '$APP_DIR' && exec claude --dangerously-skip-permissions --model '${CLAUDE_MODEL:-opus}'"
