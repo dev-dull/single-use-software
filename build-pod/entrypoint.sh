@@ -305,37 +305,27 @@ fi
 
 export APP_DIR
 export CLAUDE_MODEL="${CLAUDE_MODEL:-opus}"
-# Single-quoted on purpose: $APP_DIR/$SUS_SEED_FILE/$CLAUDE_MODEL and the
-# $(cat …) must be evaluated by the inner per-connection shell (so the mv/cat
-# run once per connection), not baked in once by this shell at exec time.
+# ttyd spawns a fresh `claude` per client connection, so consume the seed with
+# an atomic `mv` that succeeds exactly once: the first connection is seeded,
+# every later one (reconnect, refresh, second tab) falls through to a plain
+# interactive session and never re-runs the build over the user's work.
+#
+# Deliberately NOT recovered: if an early reconnect kills the very first build
+# before it writes a file, the replacement session is plain and the user just
+# restates the request. Auto-recovering that (re-arming the seed) needs a
+# claimant-liveness protocol whose races aren't worth it for a first-turn
+# convenience — a plain session is a fine, non-destructive fallback.
+#
+# Single-quoted body on purpose: $APP_DIR/$SUS_SEED_FILE/$CLAUDE_MODEL and the
+# $(cat …) are evaluated by the inner per-connection shell, not baked in once
+# by this shell at exec time. The untrusted description lives only in the seed
+# file and reaches claude as a single "$(cat …)" argv word — never spliced into
+# the command string, so it can't break quoting or inject shell.
 # shellcheck disable=SC2016
 exec ttyd --port 8080 --writable --base-path / \
     bash -c '
         cd "$APP_DIR" || exit 1
-        # Re-arm a seed consumed by a session that died before Claude wrote
-        # anything (e.g. an early frontend reconnect SIGHUPs the still-building
-        # claude), so the replacement connection still gets kicked. Re-arm only
-        # when ALL hold, or we risk launching a *second concurrent*
-        # --dangerously-skip-permissions build over the same dir:
-        #   - a claim happened ($SUS_SEED_FILE.used exists),
-        #   - the claimant recorded its pid AND that pid is now dead — kill -0
-        #     (a bash builtin; procps/pgrep are not in the image). A *missing*
-        #     .pid means a claim is mid-flight (the mv below and the pid write
-        #     are not atomic), i.e. a live claimant, so we must NOT treat its
-        #     absence as death, and
-        #   - the app dir still holds nothing but sus.json (no user work).
-        # Once Claude writes any file the re-arm stops firing and the seed is
-        # one-shot for the rest of the session.
-        if [ -n "${SUS_SEED_FILE:-}" ] && [ -f "$SUS_SEED_FILE.used" ] \
-           && [ -f "$SUS_SEED_FILE.pid" ] \
-           && ! kill -0 "$(cat "$SUS_SEED_FILE.pid" 2>/dev/null)" 2>/dev/null \
-           && [ -z "$(ls -A . 2>/dev/null | grep -v "^sus\.json$")" ]; then
-            mv "$SUS_SEED_FILE.used" "$SUS_SEED_FILE" 2>/dev/null || true
-        fi
         if [ -n "${SUS_SEED_FILE:-}" ] && mv "$SUS_SEED_FILE" "$SUS_SEED_FILE.used" 2>/dev/null; then
-            # $$ is this shell, which becomes claude via exec — so the pid file
-            # tracks the live build for the liveness check above.
-            echo "$$" > "$SUS_SEED_FILE.pid"
             exec claude --dangerously-skip-permissions --model "$CLAUDE_MODEL" "$(cat "$SUS_SEED_FILE.used")"
         fi
         exec claude --dangerously-skip-permissions --model "$CLAUDE_MODEL"
