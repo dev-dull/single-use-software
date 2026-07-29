@@ -312,17 +312,27 @@ export CLAUDE_MODEL="${CLAUDE_MODEL:-opus}"
 exec ttyd --port 8080 --writable --base-path / \
     bash -c '
         cd "$APP_DIR" || exit 1
-        # Re-arm a seed consumed by a connection that died before Claude wrote
-        # anything — e.g. an early frontend reconnect (health-watch starts ~5s
-        # in) SIGHUPs the still-building session. Safe precisely because "nothing
-        # but sus.json in the app dir" means there is no user work to clobber;
-        # once Claude has written any file this stops firing and the one-shot
-        # guarantee holds for the rest of the session.
+        # Re-arm a seed consumed by a session that died before Claude wrote
+        # anything (e.g. an early frontend reconnect SIGHUPs the still-building
+        # claude), so the replacement connection still gets kicked. Two guards
+        # keep this from starting a *second concurrent* build:
+        #   - the app dir must still hold nothing but sus.json (no user work), and
+        #   - the previous claimant must be dead — kill -0 on the pid it recorded
+        #     (kill is a bash builtin; procps/pgrep are not in the image).
+        # Without the liveness check a second client (a new tab, or a reconnect
+        # that beats SIGHUP to the old claude) would re-arm while the first build
+        # is still running and launch another --dangerously-skip-permissions build
+        # over the same dir. Once Claude writes any file the re-arm stops firing
+        # and the seed is one-shot for the rest of the session.
         if [ -n "${SUS_SEED_FILE:-}" ] && [ -f "$SUS_SEED_FILE.used" ] \
-           && [ -z "$(ls -A . 2>/dev/null | grep -v "^sus\.json$")" ]; then
+           && [ -z "$(ls -A . 2>/dev/null | grep -v "^sus\.json$")" ] \
+           && ! { [ -f "$SUS_SEED_FILE.pid" ] && kill -0 "$(cat "$SUS_SEED_FILE.pid" 2>/dev/null)" 2>/dev/null; }; then
             mv "$SUS_SEED_FILE.used" "$SUS_SEED_FILE" 2>/dev/null || true
         fi
         if [ -n "${SUS_SEED_FILE:-}" ] && mv "$SUS_SEED_FILE" "$SUS_SEED_FILE.used" 2>/dev/null; then
+            # $$ is this shell, which becomes claude via exec — so the pid file
+            # tracks the live build for the liveness check above.
+            echo "$$" > "$SUS_SEED_FILE.pid"
             exec claude --dangerously-skip-permissions --model "$CLAUDE_MODEL" "$(cat "$SUS_SEED_FILE.used")"
         fi
         exec claude --dangerously-skip-permissions --model "$CLAUDE_MODEL"
