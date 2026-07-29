@@ -63,7 +63,7 @@ Run SUS for real on an existing cluster — a homelab k3s box or a managed clust
 - A running Kubernetes cluster and `kubectl` access to it
 - [Helm](https://helm.sh/docs/intro/install/) 3+
 - An **ingress controller with WebSocket support** (nginx, Traefik, …) — the build terminal (ttyd) needs WebSocket upgrades
-- A DNS name pointing at your ingress (recommended; **required** if you enable [authentication](#authentication-optional))
+- A DNS name pointing at your ingress (recommended; **required** if you enable [authentication](#authentication-authelia))
 - An [Anthropic API key](https://console.anthropic.com/settings/keys)
 
 ### 1. Fork the starter pack
@@ -87,7 +87,7 @@ To run images you've built yourself (e.g. from a fork), push them to a registry 
 ```bash
 git clone https://github.com/dev-dull/single-use-software.git
 cd single-use-software
-make build push    # builds the landing + build-pod images
+make build push REGISTRY=your-registry TAG=dev    # builds + pushes the landing and build-pod images
 helm install sus ./charts/sus \
   --set landing.image.repository=your-registry/sus-landing \
   --set landing.image.tag=dev \
@@ -141,7 +141,7 @@ Open SUS through your ingress (or load balancer) URL, click the **Setup** link, 
 
 Click **+ Create New App**, give it a name and description, and start chatting with Claude. Your app appears in the live preview as you build it.
 
-### Authentication (optional)
+### Authentication (Authelia)
 
 By default SUS runs single-user with no login. Enabling `auth.enabled` deploys a bundled **Authelia** and switches the landing pod to trusted-header identity so build sessions are attributed to the logged-in user:
 
@@ -255,7 +255,7 @@ SUS can be configured two ways:
 | Git access token | `/setup` | K8s secret `sus-git-token` |
 | Claude model for build sessions | — | `--set buildPod.claudeModel=opus` (default; aliases like `opus`/`sonnet`/`haiku` track the latest model, a full ID pins one — see note below) |
 | Ingress | — | `ingress.*` — see [Expose it (Ingress)](#3-expose-it-ingress) |
-| Authentication | — | `auth.*` — see [Authentication (optional)](#authentication-optional) |
+| Authentication | — | `auth.*` — see [Authentication (Authelia)](#authentication-authelia) |
 | Build pod resources | — | `buildPod.resources` in `values.yaml` |
 | Landing page resources | — | `landing.resources` in `values.yaml` |
 

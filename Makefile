@@ -57,7 +57,7 @@ upgrade: ## Upgrade the Helm release with latest values
 dev: cluster-up build push deploy ## Full dev setup: cluster + build + deploy
 	@echo ""
 	@echo "SUS is running. Access the landing page:"
-	@echo "  kubectl port-forward -n sus svc/sus-landing 8080:80"
+	@echo "  kubectl port-forward -n sus svc/sus-landing 9090:80"
 	@echo ""
 
 teardown: cluster-down ## Tear down everything
