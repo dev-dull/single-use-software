@@ -95,6 +95,7 @@ data = {
 }
 with open(os.path.join(os.environ["APP_DIR"], "sus.json"), "w") as f:
     json.dump(data, f, indent=2)
+    f.write("\n")
 PYEOF
     git add -A 2>/dev/null || true
     git commit -m "chore: scaffold ${APP_TEAM:-_new}/${APP_SLUG:-_new}" 2>/dev/null || true
@@ -311,6 +312,16 @@ export CLAUDE_MODEL="${CLAUDE_MODEL:-opus}"
 exec ttyd --port 8080 --writable --base-path / \
     bash -c '
         cd "$APP_DIR" || exit 1
+        # Re-arm a seed consumed by a connection that died before Claude wrote
+        # anything — e.g. an early frontend reconnect (health-watch starts ~5s
+        # in) SIGHUPs the still-building session. Safe precisely because "nothing
+        # but sus.json in the app dir" means there is no user work to clobber;
+        # once Claude has written any file this stops firing and the one-shot
+        # guarantee holds for the rest of the session.
+        if [ -n "${SUS_SEED_FILE:-}" ] && [ -f "$SUS_SEED_FILE.used" ] \
+           && [ -z "$(ls -A . 2>/dev/null | grep -v "^sus\.json$")" ]; then
+            mv "$SUS_SEED_FILE.used" "$SUS_SEED_FILE" 2>/dev/null || true
+        fi
         if [ -n "${SUS_SEED_FILE:-}" ] && mv "$SUS_SEED_FILE" "$SUS_SEED_FILE.used" 2>/dev/null; then
             exec claude --dangerously-skip-permissions --model "$CLAUDE_MODEL" "$(cat "$SUS_SEED_FILE.used")"
         fi
