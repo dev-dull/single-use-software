@@ -77,18 +77,25 @@ mkdir -p "$APP_DIR"
 NEW_APP=0
 if [ ! -f "$APP_DIR/sus.json" ]; then
     NEW_APP=1
-    cat > "$APP_DIR/sus.json" <<SUSJSON
-{
-  "name": "${APP_NAME:-New App}",
-  "description": "${APP_DESCRIPTION:-}",
-  "owner": "${USER_ID:-anonymous}",
-  "team": "${APP_TEAM:-_new}",
-  "created_at": "$(date -u +%Y-%m-%d)",
-  "visibility": ["default"],
-  "default_stack": "python+htmx",
-  "tags": []
+    # Build the manifest with json.dump, not a heredoc: APP_NAME and especially
+    # APP_DESCRIPTION are free-form user input (a <textarea>), so a quote or
+    # newline spliced into hand-written JSON yields an invalid sus.json — and
+    # catalog.py silently drops apps whose manifest won't parse.
+    APP_DIR="$APP_DIR" python3 - <<'PYEOF'
+import datetime, json, os
+data = {
+    "name": os.environ.get("APP_NAME") or "New App",
+    "description": os.environ.get("APP_DESCRIPTION", ""),
+    "owner": os.environ.get("USER_ID") or "anonymous",
+    "team": os.environ.get("APP_TEAM") or "_new",
+    "created_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d"),
+    "visibility": ["default"],
+    "default_stack": "python+htmx",
+    "tags": [],
 }
-SUSJSON
+with open(os.path.join(os.environ["APP_DIR"], "sus.json"), "w") as f:
+    json.dump(data, f, indent=2)
+PYEOF
     git add -A 2>/dev/null || true
     git commit -m "chore: scaffold ${APP_TEAM:-_new}/${APP_SLUG:-_new}" 2>/dev/null || true
 fi
@@ -262,26 +269,50 @@ with open(path, "w") as f:
     json.dump(data, f)
 PYEOF
 
-# For a brand-new app with a description, seed an initial prompt so Claude
+# For a brand-new app with a description, hand Claude an initial prompt so it
 # starts building to spec on the first turn — otherwise the form description
-# only reaches the session as an env var the CLAUDE.md *asks* Claude to read,
-# which isn't guaranteed. Gated to NEW_APP: an existing-app "Build" session
-# must NOT be auto-kicked — its sus.json description may be stale and the user
-# is about to say what they want.
+# only reaches the session as an env var CLAUDE.md *asks* Claude to read, which
+# isn't guaranteed. Gated to NEW_APP: an existing-app "Build" session must NOT
+# be auto-kicked — its sus.json description may be stale and the user is about
+# to say what they want.
 #
-# The description is untrusted user input, so it is passed via an exported env
-# var and expanded by the INNER shell as a single quoted argument (note the
-# escaped \$SUS_INITIAL_PROMPT). It is never spliced into the command string,
-# so it cannot break quoting or inject shell.
+# One-shot, and this matters: ttyd spawns a fresh `claude` per *client
+# connection*, and the frontend reconnects on its own (terminal-iframe reload on
+# a not-ready blip, a full page reload after ~15s, a manual refresh, a second
+# tab). If every connection were seeded, a reconnect hours into a session would
+# re-run "build the initial version" over the user's work — and autosave would
+# commit the clobber. So we drop the prompt in a seed file and let the inner
+# shell claim it with an atomic `mv` that succeeds exactly once: only the first
+# connection is seeded; every later one falls through to a plain interactive
+# session. (NEW_APP alone can't gate this — it's fixed for the pod's lifetime.)
+#
+# APP_DESCRIPTION is untrusted: it's expanded into the seed file by the heredoc
+# (bash does not re-scan an expansion's contents) and reaches claude as a single
+# "$(cat …)" word — never spliced into the command string, so it cannot break
+# quoting or inject shell.
 if [ "${NEW_APP:-0}" = "1" ] && [ -n "${APP_DESCRIPTION:-}" ]; then
-    export SUS_INITIAL_PROMPT="Build this app now and show it in the preview pane on the right. Here is what it should do:
+    SUS_SEED_FILE=/tmp/sus-initial-prompt
+    cat > "$SUS_SEED_FILE" <<SEEDEOF
+Build this app now and show it in the preview pane on the right. Here is what it should do:
 
 ${APP_DESCRIPTION}
 
-Create the initial working version straight away, then tell me it's ready."
-    exec ttyd --port 8080 --writable --base-path / \
-        bash -c "cd '$APP_DIR' && exec claude --dangerously-skip-permissions --model '${CLAUDE_MODEL:-opus}' \"\$SUS_INITIAL_PROMPT\""
-else
-    exec ttyd --port 8080 --writable --base-path / \
-        bash -c "cd '$APP_DIR' && exec claude --dangerously-skip-permissions --model '${CLAUDE_MODEL:-opus}'"
+Create the initial working version straight away, then tell me it's ready.
+SEEDEOF
+    export SUS_SEED_FILE
 fi
+
+export APP_DIR
+export CLAUDE_MODEL="${CLAUDE_MODEL:-opus}"
+# Single-quoted on purpose: $APP_DIR/$SUS_SEED_FILE/$CLAUDE_MODEL and the
+# $(cat …) must be evaluated by the inner per-connection shell (so the mv/cat
+# run once per connection), not baked in once by this shell at exec time.
+# shellcheck disable=SC2016
+exec ttyd --port 8080 --writable --base-path / \
+    bash -c '
+        cd "$APP_DIR" || exit 1
+        if [ -n "${SUS_SEED_FILE:-}" ] && mv "$SUS_SEED_FILE" "$SUS_SEED_FILE.used" 2>/dev/null; then
+            exec claude --dangerously-skip-permissions --model "$CLAUDE_MODEL" "$(cat "$SUS_SEED_FILE.used")"
+        fi
+        exec claude --dangerously-skip-permissions --model "$CLAUDE_MODEL"
+    '
