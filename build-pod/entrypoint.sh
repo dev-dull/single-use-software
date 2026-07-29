@@ -314,19 +314,22 @@ exec ttyd --port 8080 --writable --base-path / \
         cd "$APP_DIR" || exit 1
         # Re-arm a seed consumed by a session that died before Claude wrote
         # anything (e.g. an early frontend reconnect SIGHUPs the still-building
-        # claude), so the replacement connection still gets kicked. Two guards
-        # keep this from starting a *second concurrent* build:
-        #   - the app dir must still hold nothing but sus.json (no user work), and
-        #   - the previous claimant must be dead — kill -0 on the pid it recorded
-        #     (kill is a bash builtin; procps/pgrep are not in the image).
-        # Without the liveness check a second client (a new tab, or a reconnect
-        # that beats SIGHUP to the old claude) would re-arm while the first build
-        # is still running and launch another --dangerously-skip-permissions build
-        # over the same dir. Once Claude writes any file the re-arm stops firing
-        # and the seed is one-shot for the rest of the session.
+        # claude), so the replacement connection still gets kicked. Re-arm only
+        # when ALL hold, or we risk launching a *second concurrent*
+        # --dangerously-skip-permissions build over the same dir:
+        #   - a claim happened ($SUS_SEED_FILE.used exists),
+        #   - the claimant recorded its pid AND that pid is now dead — kill -0
+        #     (a bash builtin; procps/pgrep are not in the image). A *missing*
+        #     .pid means a claim is mid-flight (the mv below and the pid write
+        #     are not atomic), i.e. a live claimant, so we must NOT treat its
+        #     absence as death, and
+        #   - the app dir still holds nothing but sus.json (no user work).
+        # Once Claude writes any file the re-arm stops firing and the seed is
+        # one-shot for the rest of the session.
         if [ -n "${SUS_SEED_FILE:-}" ] && [ -f "$SUS_SEED_FILE.used" ] \
-           && [ -z "$(ls -A . 2>/dev/null | grep -v "^sus\.json$")" ] \
-           && ! { [ -f "$SUS_SEED_FILE.pid" ] && kill -0 "$(cat "$SUS_SEED_FILE.pid" 2>/dev/null)" 2>/dev/null; }; then
+           && [ -f "$SUS_SEED_FILE.pid" ] \
+           && ! kill -0 "$(cat "$SUS_SEED_FILE.pid" 2>/dev/null)" 2>/dev/null \
+           && [ -z "$(ls -A . 2>/dev/null | grep -v "^sus\.json$")" ]; then
             mv "$SUS_SEED_FILE.used" "$SUS_SEED_FILE" 2>/dev/null || true
         fi
         if [ -n "${SUS_SEED_FILE:-}" ] && mv "$SUS_SEED_FILE" "$SUS_SEED_FILE.used" 2>/dev/null; then
