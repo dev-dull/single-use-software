@@ -95,6 +95,8 @@ helm install sus ./charts/sus \
   --set buildPod.image.tag=dev \
   --set gitRepo.url=https://github.com/you/sus-starter-pack.git
 ```
+
+If you go this route, carry the `--set landing.image.*` / `--set buildPod.image.*` flags (and `./charts/sus` in place of the `oci://…` URL) through every later `helm upgrade` — including the [Ingress](#3-expose-it-ingress) and [Authentication](#authentication-authelia) examples below — otherwise the upgrade reverts you to the GHCR images.
 </details>
 
 ### 3. Expose it (Ingress)
