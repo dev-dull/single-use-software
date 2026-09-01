@@ -140,13 +140,16 @@
     // Always replace any existing menu (this fires the previous menu's onHide).
     hide();
 
-    // Robust against no/empty items: show nothing.
-    if (!items || !items.length) {
-      return;
-    }
-
     owner = (opts && opts.owner) || null;
     onHideCb = (opts && typeof opts.onHide === 'function') ? opts.onHide : null;
+
+    // Robust against no/empty items: show nothing, but still fire onHide (via
+    // hide) so a caller that already set its own open-state isn't left latched
+    // with no menu and no callback to clear it.
+    if (!items || !items.length) {
+      hide();
+      return;
+    }
 
     var menu = document.createElement('div');
     menu.className = 'menu';

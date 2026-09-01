@@ -302,9 +302,10 @@
     // Menu bar. Bound to mousedown so a re-click's toggle runs before
     // ContextMenu's own outside-dismiss on the same gesture (the owner guard
     // keeps the menu open until this handler decides).
-    var logo = $("#apple-menu"); if (logo) logo.addEventListener("mousedown", function () { appleMenu(logo); });
+    var logo = $("#apple-menu"); if (logo) logo.addEventListener("mousedown", function (e) { if (e.button !== 0) return; appleMenu(logo); });
     $all(".menubar__menu").forEach(function (m) {
-      m.addEventListener("mousedown", function () {
+      m.addEventListener("mousedown", function (e) {
+        if (e.button !== 0) return; // left button only — don't open on right/middle
         var which = m.getAttribute("data-menu");
         if (which === "file") fileMenu(m);
         else if (which === "view") viewMenu(m);
