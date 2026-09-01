@@ -194,6 +194,10 @@ def _starting_page(team: str, app_slug: str) -> HTMLResponse:
     .countdown {{ color: var(--ink-soft); font-size: .8rem; margin-top: 1.5rem; }}
   </style>
   <script>
+    // Framed inside a desktop window? Self-mark so theme.css's live
+    // `.sus-embedded .back-link` rule hides the back-to-catalog link even if
+    // the parent's one-shot neutralize never runs (this page calls window.stop).
+    if (window.top !== window.self) document.documentElement.classList.add('sus-embedded');
     const key = 'sus-starting-{team}-{app_slug}';
     const start = parseInt(localStorage.getItem(key) || '0');
     const now = Date.now();
@@ -212,7 +216,7 @@ def _starting_page(team: str, app_slug: str) -> HTMLResponse:
             <p>This usually means the app has an error or is missing dependencies.</p>
             <p style="margin-top:1.5rem;">
               <a href="/build/{team}/{app_slug}">Open in build mode to investigate</a><br/>
-              <a href="/" style="color:var(--ink-soft);">&larr; Back to catalog</a>
+              <a href="/" class="back-link">&larr; Back to catalog</a>
             </p>
           </div>`;
       }});

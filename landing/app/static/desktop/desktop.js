@@ -183,10 +183,15 @@
   // --- menu-bar dropdowns --------------------------------------------------
 
   function dropdownBelow(el, items) {
+    // Re-clicking an open title toggles it shut instead of stacking a second
+    // menu + a second document listener.
+    if (el.classList.contains("is-open")) { window.ContextMenu.hide(); return; }
     var r = el.getBoundingClientRect();
     el.classList.add("is-open");
     var clear = function () { el.classList.remove("is-open"); document.removeEventListener("mousedown", onDown, true); };
-    var onDown = function (e) { if (e.target !== el) clear(); };
+    // Idempotent clear so any outside mousedown unwinds it (a second click on
+    // the same title is handled by the toggle above).
+    var onDown = function () { clear(); };
     // Defer so ContextMenu's own outside-close listeners settle first.
     setTimeout(function () { document.addEventListener("mousedown", onDown, true); }, 0);
     window.ContextMenu.show(r.left, r.bottom, items);

@@ -230,7 +230,7 @@
       document.removeEventListener('touchmove', onMove, true);
       document.removeEventListener('touchend', onUp, true);
       document.removeEventListener('touchcancel', onUp, true);
-      window.removeEventListener('blur', onUp, true);
+      window.removeEventListener('blur', onUp, false);
     }
 
     // Shield iframes (pointer-events:none via CSS) so mousemove keeps reaching
@@ -245,7 +245,7 @@
     // Belt-and-braces: if a mouseup is lost (pointer left the window, or a
     // context menu opened mid-gesture), window blur ends the gesture so
     // .is-dragging can't stick and leave every window's iframe click-dead.
-    window.addEventListener('blur', onUp, true);
+    window.addEventListener('blur', onUp, false);
 
     if (evt.cancelable) evt.preventDefault();
   }
@@ -292,7 +292,7 @@
       document.removeEventListener('touchmove', onMove, true);
       document.removeEventListener('touchend', onUp, true);
       document.removeEventListener('touchcancel', onUp, true);
-      window.removeEventListener('blur', onUp, true);
+      window.removeEventListener('blur', onUp, false);
     }
 
     // Shield iframes (pointer-events:none via CSS) so mousemove keeps reaching
@@ -307,7 +307,7 @@
     // Belt-and-braces: if a mouseup is lost (pointer left the window, or a
     // context menu opened mid-gesture), window blur ends the gesture so
     // .is-dragging can't stick and leave every window's iframe click-dead.
-    window.addEventListener('blur', onUp, true);
+    window.addEventListener('blur', onUp, false);
 
     if (evt.cancelable) evt.preventDefault();
   }

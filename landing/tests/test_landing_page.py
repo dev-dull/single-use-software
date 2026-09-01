@@ -44,3 +44,22 @@ def test_static_assets_are_not_no_store():
     r = _client().get("/static/desktop/theme.css")
     cache_control = r.headers.get("cache-control", "")
     assert "no-store" not in cache_control
+
+
+def test_landing_page_renders_folders_and_app_icons(monkeypatch):
+    # scan_apps() returns [] when /repo/apps is absent (the CI default), so the
+    # populated branch — the folder loop, per-team <template>s, and the data-*
+    # attributes desktop.js reads — needs a real catalog to exercise it.
+    monkeypatch.setattr(
+        "app.main.scan_apps",
+        lambda **kw: [
+            {"name": "Widget", "team": "acme", "slug": "widget",
+             "description": "d", "tags": ["x"]},
+        ],
+    )
+    r = _client().get("/")
+    assert r.status_code == 200
+    assert 'class="icon icon--folder"' in r.text
+    assert 'data-team="acme"' in r.text
+    assert 'data-run-url="/run/acme/widget"' in r.text
+    assert 'data-build-url="/build/acme/widget"' in r.text
