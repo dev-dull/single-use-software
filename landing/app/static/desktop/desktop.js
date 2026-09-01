@@ -183,33 +183,18 @@
   // --- menu-bar dropdowns --------------------------------------------------
 
   function dropdownBelow(el, items) {
-    // A second click on an open title arrives with is-open already cleared,
-    // because the mousedown listeners below fire before this click handler.
-    // __susClosedBySelf means "this title's mousedown dismissed a *visible*
-    // menu" — so a genuine re-click toggles shut, while a self-close
-    // (Escape/scroll/resize leaves no .menu) keeps the flag false and reopens.
-    if (el.__susClosedBySelf) { el.__susClosedBySelf = false; return; }
+    // ContextMenu treats pointer events on the `owner` as non-dismissing, so
+    // while a menu is open its owning title still carries is-open — a second
+    // mousedown here toggles it shut. `onHide` clears is-open on every dismissal
+    // (mousedown outside, item pick, Escape, scroll, resize). No gesture-spanning
+    // state, so nothing can be stranded. Titles are bound to mousedown (wire()).
+    if (el.classList.contains("is-open")) { window.ContextMenu.hide(); return; }
     var r = el.getBoundingClientRect();
     el.classList.add("is-open");
-    var clear = function () { el.classList.remove("is-open"); window.removeEventListener("mousedown", onDown, true); };
-    // window-capture fires before ContextMenu's document-capture teardown, so a
-    // still-present .menu here means THIS mousedown is what closed the menu.
-    var onDown = function (e) {
-      el.__susClosedBySelf = el.contains(e.target) && !!document.querySelector(".menu");
-      clear();
-    };
-    // If that mousedown started on the title but releases elsewhere, no click
-    // arrives to consume the flag — drop it so it can't eat the next click.
-    var onUp = function (e) {
-      window.removeEventListener("mouseup", onUp, true);
-      if (el.__susClosedBySelf && !el.contains(e.target)) el.__susClosedBySelf = false;
-    };
-    // Defer so ContextMenu's own outside-close listeners settle first.
-    setTimeout(function () {
-      window.addEventListener("mousedown", onDown, true);
-      window.addEventListener("mouseup", onUp, true);
-    }, 0);
-    window.ContextMenu.show(r.left, r.bottom, items);
+    window.ContextMenu.show(r.left, r.bottom, items, {
+      owner: el,
+      onHide: function () { el.classList.remove("is-open"); }
+    });
   }
 
   function appleMenu(el) {
@@ -314,10 +299,12 @@
   // --- event wiring --------------------------------------------------------
 
   function wire() {
-    // Menu bar.
-    var logo = $("#apple-menu"); if (logo) logo.addEventListener("click", function () { appleMenu(logo); });
+    // Menu bar. Bound to mousedown so a re-click's toggle runs before
+    // ContextMenu's own outside-dismiss on the same gesture (the owner guard
+    // keeps the menu open until this handler decides).
+    var logo = $("#apple-menu"); if (logo) logo.addEventListener("mousedown", function () { appleMenu(logo); });
     $all(".menubar__menu").forEach(function (m) {
-      m.addEventListener("click", function () {
+      m.addEventListener("mousedown", function () {
         var which = m.getAttribute("data-menu");
         if (which === "file") fileMenu(m);
         else if (which === "view") viewMenu(m);

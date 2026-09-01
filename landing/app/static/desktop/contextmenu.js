@@ -4,7 +4,7 @@
  * Used for BOTH right-click context menus on desktop icons AND menu-bar
  * dropdowns. Vanilla JS, no libraries, no imports. Exposes a single global:
  *
- *   window.ContextMenu.show(x, y, items)
+ *   window.ContextMenu.show(x, y, items, opts?)   // opts: { owner, onHide }
  *   window.ContextMenu.hide()
  *
  * `items` entries are either:
@@ -23,6 +23,11 @@
 
   // The one menu element currently on screen (or null).
   var current = null;
+  // Optional owner element (the control that toggles this menu) and an onHide
+  // callback, both supplied via show()'s opts. A pointer event on the owner is
+  // not an "outside" dismissal — the owner's own handler decides (toggle).
+  var owner = null;
+  var onHideCb = null;
 
   // Guards against the very mousedown that opened the menu immediately
   // dismissing it (the caller may still be inside that event's bubble).
@@ -35,6 +40,11 @@
     // A pointer event inside the menu is handled by the item click handler;
     // ignore it here so we don't tear the menu down before the action fires.
     if (current.contains(e.target)) {
+      return;
+    }
+    // The owner's own handler decides what its pointer event means (toggle), so
+    // don't treat it as an outside dismissal.
+    if (owner && owner.contains(e.target)) {
       return;
     }
     hide();
@@ -77,6 +87,11 @@
   }
 
   function hide() {
+    // Snapshot + clear the callback before teardown so it runs at most once and
+    // can safely open a new menu.
+    var cb = onHideCb;
+    owner = null;
+    onHideCb = null;
     if (current) {
       if (current.parentNode) {
         current.parentNode.removeChild(current);
@@ -84,6 +99,9 @@
       current = null;
     }
     detachListeners();
+    if (typeof cb === 'function') {
+      cb();
+    }
   }
 
   function buildItem(item) {
@@ -118,14 +136,17 @@
     return row;
   }
 
-  function show(x, y, items) {
-    // Always replace any existing menu.
+  function show(x, y, items, opts) {
+    // Always replace any existing menu (this fires the previous menu's onHide).
     hide();
 
     // Robust against no/empty items: show nothing.
     if (!items || !items.length) {
       return;
     }
+
+    owner = (opts && opts.owner) || null;
+    onHideCb = (opts && typeof opts.onHide === 'function') ? opts.onHide : null;
 
     var menu = document.createElement('div');
     menu.className = 'menu';
