@@ -82,7 +82,11 @@ body {
 
 .menubar__spacer { flex: 1 1 auto; }
 
-.menubar__search {
+/* Match theme.css's input[type=search] specificity (0,1,1) so this wins on
+   source order instead of losing width/padding/background to the generic
+   field styling. */
+.menubar__search,
+input[type="search"].menubar__search {
   width: 180px;
   max-width: 34vw;
   height: 24px;

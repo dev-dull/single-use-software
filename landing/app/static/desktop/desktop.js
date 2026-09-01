@@ -65,32 +65,54 @@
 
   // --- window openers ------------------------------------------------------
 
-  // In the desktop, a window's close box IS "back to catalog" — a platform page
-  // that navigates its own frame to "/" would load the whole desktop inside the
-  // window (SUS-in-SUS). These pages are same-origin, so once framed we hide
-  // their back-to-root nav. Wrapped in try/catch for any cross-origin frame.
-  function neutralizeFrame(iframe) {
+  // Apply the desktop's current appearance to one framed document.
+  function setDocTheme(doc) {
+    var mode = document.documentElement.getAttribute("data-theme");
+    if (mode) doc.documentElement.setAttribute("data-theme", mode);
+    else doc.documentElement.removeAttribute("data-theme");
+  }
+
+  // Run fn over a framed doc AND its nested same-origin frame. Windows nest one
+  // level: run.html -> the app iframe, build.html -> the preview iframe.
+  function eachFramedDoc(iframe, fn) {
     try {
       var doc = iframe.contentDocument;
       if (!doc) return;
-      doc.documentElement.classList.add("sus-embedded");
-      doc.querySelectorAll('a[href="/"]').forEach(function (a) { a.style.display = "none"; });
-      // Framed pages are separate documents — mirror the desktop's theme choice.
-      var mode = document.documentElement.getAttribute("data-theme");
-      if (mode) doc.documentElement.setAttribute("data-theme", mode);
+      fn(doc);
+      doc.querySelectorAll("iframe").forEach(function (inner) {
+        try { if (inner.contentDocument) fn(inner.contentDocument); } catch (e) {}
+      });
     } catch (e) { /* cross-origin — leave it be */ }
   }
 
-  // Propagate the current appearance to every open (same-origin) window.
+  // In the desktop, a window's close box IS "back to catalog" — a platform page
+  // that navigates its own frame to "/" would load the whole desktop inside the
+  // window (SUS-in-SUS). These pages are same-origin, so once framed we hide
+  // their back-to-root nav and mirror the desktop's theme down to the app.
+  function neutralizeFrame(iframe) {
+    try {
+      var doc = iframe.contentDocument;
+      if (doc) {
+        doc.documentElement.classList.add("sus-embedded");
+        doc.querySelectorAll('a[href="/"]').forEach(function (a) { a.style.display = "none"; });
+        // The nested app frame may load after this pass — theme it on load too.
+        doc.querySelectorAll("iframe").forEach(function (inner) {
+          if (inner.__susThemeHooked) return;
+          inner.__susThemeHooked = true;
+          inner.addEventListener("load", function () {
+            try { if (inner.contentDocument) setDocTheme(inner.contentDocument); } catch (e) {}
+          });
+        });
+      }
+    } catch (e) { /* cross-origin — leave it be */ }
+    eachFramedDoc(iframe, setDocTheme);
+  }
+
+  // Propagate the current appearance to every open (same-origin) window, two
+  // levels deep so app content inside run/build windows follows the toggle.
   function applyThemeToFrames() {
-    var mode = document.documentElement.getAttribute("data-theme");
     $all("#windows .window__body iframe").forEach(function (f) {
-      try {
-        var doc = f.contentDocument;
-        if (!doc) return;
-        if (mode) doc.documentElement.setAttribute("data-theme", mode);
-        else doc.documentElement.removeAttribute("data-theme");
-      } catch (e) { /* cross-origin */ }
+      eachFramedDoc(f, setDocTheme);
     });
   }
 
@@ -103,7 +125,12 @@
     var iframe = win.querySelector(".window__body iframe");
     if (iframe) {
       neutralizeFrame(iframe);
-      iframe.addEventListener("load", function () { neutralizeFrame(iframe); });
+      // WM.open de-dupes on id, so guard against stacking a load listener on the
+      // same iframe each time an already-open window is re-focused.
+      if (!iframe.__susNeutralizeHooked) {
+        iframe.__susNeutralizeHooked = true;
+        iframe.addEventListener("load", function () { neutralizeFrame(iframe); });
+      }
     }
     return win;
   }
@@ -169,7 +196,7 @@
     dropdownBelow(el, [
       { label: "About This Desktop", action: openAbout },
       { separator: true },
-      { label: "New App…", action: function () { openUrl("/new", "New App", "new"); } },
+      { label: "New App…", action: function () { openUrl("/new", "New App", "/new"); } },
       { label: "Skills", action: function () { openUrl("/skills", "Skills", "skills"); } },
       { label: "Analytics", action: function () { openUrl("/analytics", "Analytics", "analytics"); } },
       { label: "Setup", action: function () { openUrl("/setup", "Setup", "setup"); } }
@@ -178,7 +205,7 @@
 
   function fileMenu(el) {
     dropdownBelow(el, [
-      { label: "New App…", action: function () { openUrl("/new", "New App", "new"); } },
+      { label: "New App…", action: function () { openUrl("/new", "New App", "/new"); } },
       { separator: true },
       { label: "Find…", action: function () { var s = $("#desktop-search"); if (s) s.focus(); } }
     ]);
@@ -327,7 +354,15 @@
     if (data().setupComplete) return;
     var tpl = $("#setup-alert-tpl");
     if (!tpl || !window.WM) return;
-    window.WM.open({ id: "setup-alert", title: "SUS", content: tpl.innerHTML, width: 400, height: 270 });
+    var win = window.WM.open({ id: "setup-alert", title: "SUS", content: tpl.innerHTML, width: 400, height: 270 });
+    // The alert lives in a content window, so its <a href="/setup"> would
+    // navigate the whole desktop away. Open Setup in a window instead (keeps the
+    // metaphor and gets the same back-nav neutralization as the menus).
+    var btn = win && win.querySelector('a[href="/setup"]');
+    if (btn) btn.addEventListener("click", function (e) {
+      e.preventDefault();
+      openUrl("/setup", "Setup", "setup");
+    });
   }
 
   // --- boot ---------------------------------------------------------------

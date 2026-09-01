@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, Form, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
-from .catalog import all_tags, scan_apps
+from .catalog import scan_apps
 from .cleanup import start_cleanup_loop
 from .deps import get_identity_provider, resolve_identity
 from .identity import UserIdentity
@@ -59,10 +59,14 @@ class NoCacheMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         response = await call_next(request)
         path = request.url.path
-        # Skip probes, and skip static assets so StaticFiles' own
-        # ETag/Last-Modified revalidation (304s) works instead of re-downloading
-        # desktop.css / *.js in full on every page load.
-        if path not in ("/healthz", "/readyz") and not path.startswith("/static"):
+        if path.startswith("/static"):
+            # Static assets: `no-cache` (always revalidate, but get 304s from
+            # StaticFiles' ETag/Last-Modified) rather than no-store. Not
+            # header-less — that falls into heuristic freshness and, since the
+            # asset URLs aren't content-hashed, could pair new HTML with a stale
+            # cached script.
+            response.headers["Cache-Control"] = "no-cache"
+        elif path not in ("/healthz", "/readyz"):
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
@@ -202,8 +206,6 @@ async def index(
         query=q or None,
         tags=tags or None,
     )
-    available_tags = all_tags()
-
     # Check setup status for the banner.
     setup_complete = False
     try:
@@ -224,8 +226,6 @@ async def index(
         context={
             "identity": identity,
             "catalog": catalog,
-            "available_tags": available_tags,
-            "active_tags": tags or [],
             "query": q or "",
             "setup_complete": setup_complete,
         },
