@@ -338,7 +338,15 @@
 
     document.addEventListener("contextmenu", function (e) {
       var icon = e.target.closest ? e.target.closest(".icon") : null;
-      if (!icon) return; // let the browser menu appear off-icon
+      if (!icon) {
+        // A right-click on an open menu-bar title is the owner, so ContextMenu's
+        // owner guard keeps its dropdown open — dismiss it explicitly rather than
+        // let the native menu stack on top. Then fall through to the native menu.
+        if (window.ContextMenu && e.target.closest && e.target.closest("#menubar")) {
+          window.ContextMenu.hide();
+        }
+        return; // let the browser menu appear off-icon
+      }
       e.preventDefault();
       selectOnly(icon);
       if (icon.classList.contains("icon--app")) appMenu(icon, e.clientX, e.clientY);
