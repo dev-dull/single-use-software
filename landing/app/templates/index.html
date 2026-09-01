@@ -5,304 +5,124 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤨</text></svg>" />
   <title>SUS — Single Use Software</title>
-  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <link rel="stylesheet" href="/static/desktop/theme.css" />
+  <link rel="stylesheet" href="/static/desktop/desktop.css" />
   <style>
-    :root {
-      --bg: #f5f5f5;
-      --card-bg: #ffffff;
-      --text: #1a1a1a;
-      --muted: #666;
-      --accent: #2563eb;
-      --accent-hover: #1d4ed8;
-      --border: #e0e0e0;
-      --radius: 8px;
+    /* Structural layout only — all color/type comes from desktop.css tokens. */
+    .desktop__icons {
+      position: absolute;
+      top: 1.25rem; left: 1.25rem; right: 1.25rem;
+      display: flex; flex-wrap: wrap;
+      gap: 1rem 1.25rem;
+      align-content: flex-start;
     }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
-      padding: 2rem;
+    /* Grid of app icons shown inside an open folder window. */
+    .folder-view {
+      display: flex; flex-wrap: wrap;
+      gap: 1rem 1.25rem;
+      padding: 1rem;
+      align-content: flex-start;
     }
-
-    header {
-      max-width: 960px;
-      margin: 0 auto 2rem;
-    }
-
-    header h1 { font-size: 1.5rem; }
-    header p  { color: var(--muted); margin-top: .25rem; }
-
-    /* Search bar */
-    .search-section {
-      max-width: 960px;
-      margin: 0 auto 1rem;
-    }
-
-    .search-input {
-      width: 100%;
-      padding: .6rem 1rem;
-      font-size: 1rem;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      background: var(--card-bg);
-      color: var(--text);
-      outline: none;
-      transition: border-color .15s;
-    }
-
-    .search-input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
-    }
-
-    .search-input::placeholder { color: #aaa; }
-
-    /* Tag filter bar */
-    .tag-bar {
-      max-width: 960px;
-      margin: 0 auto 1.5rem;
-      display: flex;
-      flex-wrap: wrap;
-      gap: .4rem;
-    }
-
-    .tag-pill {
-      display: inline-block;
-      padding: .2rem .65rem;
-      font-size: .78rem;
-      font-weight: 500;
-      border-radius: 9999px;
-      cursor: pointer;
-      border: 1px solid var(--border);
-      background: var(--card-bg);
-      color: var(--muted);
-      transition: all .15s;
-      user-select: none;
-    }
-
-    .tag-pill:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    .tag-pill--active {
-      background: var(--accent);
-      color: #fff;
-      border-color: var(--accent);
-    }
-
-    .tag-pill--active:hover {
-      background: var(--accent-hover);
-      color: #fff;
-    }
-
-    .tag-pill--card {
-      cursor: default;
-      font-size: .72rem;
-      padding: .15rem .5rem;
-      background: #eef2ff;
-      color: var(--accent);
-      border-color: #c7d2fe;
-    }
-
-    .tag-pill--card:hover {
-      color: var(--accent);
-      border-color: #c7d2fe;
-    }
-
-    .card-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: .3rem;
-    }
-
-    /* Catalog grid */
-    .catalog {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 1.25rem;
-      max-width: 960px;
-      margin: 0 auto;
-    }
-
-    .card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.25rem;
-      display: flex;
-      flex-direction: column;
-      gap: .5rem;
-    }
-
-    .card h2 { font-size: 1.1rem; }
-    .card .meta { font-size: .85rem; color: var(--muted); }
-    .card .description { flex: 1; font-size: .95rem; }
-
-    .card .actions {
-      display: flex;
-      gap: .5rem;
-      margin-top: .75rem;
-    }
-
-    .btn {
-      display: inline-block;
-      padding: .4rem .85rem;
-      font-size: .85rem;
-      border-radius: var(--radius);
-      text-decoration: none;
-      cursor: pointer;
-      border: none;
-      font-weight: 500;
-    }
-
-    .btn-build { background: var(--accent); color: #fff; }
-    .btn-build:hover { background: var(--accent-hover); }
-    .btn-run { background: var(--border); color: var(--text); }
-    .btn-run:hover { background: #d0d0d0; }
-
-    .empty {
-      max-width: 960px;
-      margin: 0 auto;
-      text-align: center;
-      color: var(--muted);
-      padding: 3rem 0;
-    }
+    .folder-view__empty { padding: 1rem; font: inherit; }
+    /* Hidden templates never render on their own. */
+    template { display: none; }
   </style>
 </head>
 <body>
-  <header>
-    <div style="display: flex; align-items: center; gap: .75rem;">
-      <span style="font-size: 2.8rem; line-height: 1; cursor: default;" title="I'm watching you build things.">🤨</span>
-      <div>
-        <h1>SUS — Single Use Software</h1>
-        <p>Welcome, {{ identity.display_name }}! What are we building today? <a href="/skills" style="color: var(--accent); text-decoration: none; font-size: .85rem; margin-left: .5rem;">Skills</a> <a href="/analytics" style="color: var(--accent); text-decoration: none; font-size: .85rem; margin-left: .5rem;">Analytics</a> <a href="/setup" style="color: var(--accent); text-decoration: none; font-size: .85rem; margin-left: .5rem;">Setup</a></p>
-      </div>
-    </div>
-  </header>
-
-  {% if not setup_complete %}
-  <div style="max-width: 960px; margin: 0 auto 1.5rem; padding: 1rem 1.25rem; background: #fef3c7; border: 1px solid #fcd34d; border-radius: var(--radius); display: flex; align-items: center; justify-content: space-between;">
-    <span style="font-size: .9rem; color: #92400e;">SUS needs configuration before you can build and publish apps. <a href="/setup" style="color: #92400e; font-weight: 600;">Complete setup</a></span>
-  </div>
-  {% endif %}
-
-  <!-- Create New App card -->
-  <div style="max-width: 960px; margin: 0 auto 1.5rem;">
-    <a href="/new" style="display:flex; align-items:center; gap:1rem; padding:1.25rem; background:var(--card-bg); border:2px dashed var(--accent); border-radius:var(--radius); text-decoration:none; color:var(--text); transition: border-color .15s, background .15s;">
-      <span style="font-size:2rem; line-height:1; color:var(--accent);">+</span>
-      <div>
-        <div style="font-weight:600; font-size:1.05rem; color:var(--accent);">Create New App</div>
-        <div style="font-size:.85rem; color:var(--muted);">Describe what you want and Claude will build it for you.</div>
-      </div>
-    </a>
-  </div>
-
-  <!-- Search bar -->
-  <div class="search-section">
+  <!-- ===== Menu bar ===== -->
+  <div class="menubar" id="menubar">
+    <span class="menubar__logo" id="apple-menu" title="I'm watching you build things.">🤨</span>
+    <span class="menubar__menu" data-menu="file">File</span>
+    <span class="menubar__menu" data-menu="view">View</span>
+    <span class="menubar__spacer"></span>
     <input
-      class="search-input"
+      class="menubar__search"
+      id="desktop-search"
       type="search"
-      name="q"
-      placeholder="Search apps by name, description, or team..."
+      placeholder="Find…"
       value="{{ query }}"
-      hx-get="/api/catalog/html"
-      hx-trigger="input changed delay:200ms, search"
-      hx-target="#catalog-grid"
-      hx-include="[name='q'], [name='tags']"
+      autocomplete="off"
     />
+    <span class="menubar__clock" id="menubar-clock">--:--</span>
   </div>
 
-  <!-- Tag filter pills -->
-  {% if available_tags %}
-  <div class="tag-bar" id="tag-bar">
-    {% for tag in available_tags %}
-    <span
-      class="tag-pill{% if tag in active_tags %} tag-pill--active{% endif %}"
-      data-tag="{{ tag }}"
-      onclick="toggleTag(this)"
-    >{{ tag }}</span>
-    {% endfor %}
-  </div>
-  {% endif %}
+  <!-- ===== Desktop surface ===== -->
+  <div class="desktop" id="desktop">
+    <div class="desktop__icons" id="desktop-icons">
 
-  <!-- Hidden inputs for active tags (used by hx-include) -->
-  <div id="tag-inputs">
-    {% for tag in active_tags %}
-    <input type="hidden" name="tags" value="{{ tag }}" />
-    {% endfor %}
-  </div>
+      <!-- New App -->
+      <div class="icon icon--new" data-open-url="/new" data-title="New App" tabindex="0">
+        <div class="icon__glyph"></div>
+        <div class="icon__label">New App</div>
+      </div>
 
-  <!-- Catalog grid -->
-  <section class="catalog" id="catalog-grid">
-    {% if catalog %}
-    {% for app in catalog %}
-    <div class="card">
-      <h2>{{ app.name }}</h2>
-      <div class="meta">{{ app.team }} &middot; {{ app.get("owner", "\u2014") }}</div>
-      <div class="description">{{ app.get("description", "") }}</div>
-      {% if app.get("tags") %}
-      <div class="card-tags">
-        {% for tag in app.tags %}
-        <span class="tag-pill tag-pill--card">{{ tag }}</span>
-        {% endfor %}
+      <!-- One folder per team -->
+      {% for team, apps in catalog | groupby('team') %}
+      <div class="icon icon--folder" data-team="{{ team }}" tabindex="0">
+        <div class="icon__glyph"></div>
+        <div class="icon__label">{{ team }}</div>
+      </div>
+      {% endfor %}
+
+      {% if not catalog %}
+      <div class="icon icon--new" data-open-url="/new" data-title="New App" tabindex="0">
+        <div class="icon__glyph"></div>
+        <div class="icon__label">No apps yet — build one!</div>
       </div>
       {% endif %}
-      <div class="actions">
-        <a class="btn btn-build" href="/build/{{ app.team }}/{{ app.slug }}">Build</a>
-        <a class="btn btn-run" href="/run/{{ app.team }}/{{ app.slug }}">Run</a>
-        <a class="btn btn-run" href="/versions/{{ app.team }}/{{ app.slug }}">History</a>
+    </div>
+
+    <!-- Window layer (managed by wm.js) -->
+    <div id="windows"></div>
+  </div>
+
+  <!-- ===== Per-team icon templates (cloned into a window when a folder opens) ===== -->
+  {% for team, apps in catalog | groupby('team') %}
+  <template data-folder="{{ team }}">
+    <div class="folder-view">
+      {% for app in apps %}
+      <div class="icon icon--app"
+           tabindex="0"
+           data-name="{{ app.name }}"
+           data-team="{{ app.team }}"
+           data-slug="{{ app.slug }}"
+           data-desc="{{ app.get('description', '') }}"
+           data-tags="{{ app.get('tags', []) | join(',') }}"
+           data-run-url="/run/{{ app.team }}/{{ app.slug }}"
+           data-build-url="/build/{{ app.team }}/{{ app.slug }}"
+           data-history-url="/versions/{{ app.team }}/{{ app.slug }}">
+        <div class="icon__glyph"></div>
+        <div class="icon__label">{{ app.name }}</div>
       </div>
+      {% endfor %}
     </div>
-    {% endfor %}
-    {% else %}
-    <div class="empty" style="grid-column:1/-1">
-      <p>No applications found. Start building!</p>
+  </template>
+  {% endfor %}
+
+  <!-- ===== Setup alert (classic Mac dialog) ===== -->
+  {% if not setup_complete %}
+  <template id="setup-alert-tpl">
+    <div class="mac-alert__body">
+      <p><strong>SUS needs configuration</strong></p>
+      <p>Set up your API key, Git access, and repo before building and publishing apps.</p>
     </div>
-    {% endif %}
-  </section>
+    <div class="mac-alert__actions">
+      <a class="mac-btn mac-btn--default" href="/setup">Open Setup</a>
+    </div>
+  </template>
+  {% endif %}
 
-  <script>
-    function toggleTag(el) {
-      el.classList.toggle('tag-pill--active');
-      syncTagInputs();
-      triggerSearch();
-    }
-
-    function syncTagInputs() {
-      var container = document.getElementById('tag-inputs');
-      container.innerHTML = '';
-      document.querySelectorAll('.tag-pill--active[data-tag]').forEach(function(pill) {
-        var input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'tags';
-        input.value = pill.getAttribute('data-tag');
-        container.appendChild(input);
-      });
-    }
-
-    function triggerSearch() {
-      htmx.ajax('GET', '/api/catalog/html', {
-        target: '#catalog-grid',
-        values: getFilterValues()
-      });
-    }
-
-    function getFilterValues() {
-      var vals = {};
-      var q = document.querySelector('.search-input').value;
-      if (q) vals.q = q;
-      var tags = [];
-      document.querySelectorAll('#tag-inputs input[name="tags"]').forEach(function(el) {
-        tags.push(el.value);
-      });
-      if (tags.length) vals.tags = tags;
-      return vals;
+  <!-- Identity + flags for the glue script -->
+  <script id="desktop-data" type="application/json">
+    {
+      "user": {{ identity.display_name | tojson }},
+      "setupComplete": {{ setup_complete | tojson }}
     }
   </script>
+
+  <!-- Modules: window manager + popup menus, then the glue. -->
+  <script src="/static/desktop/wm.js"></script>
+  <script src="/static/desktop/contextmenu.js"></script>
+  <script src="/static/desktop/desktop.js"></script>
 </body>
 </html>

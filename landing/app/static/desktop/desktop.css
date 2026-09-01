@@ -1,0 +1,369 @@
+/*
+ * desktop.css — SUS desktop design system.
+ *
+ * A warm, modern "desktop OS" look (inspired by soft skeuomorphic desktops):
+ * tinted wallpaper, frosted rounded window panels, soft shadows, friendly
+ * line icons, a restrained warm accent. Fully token-driven so dark mode is a
+ * variable swap. Class/DOM contract is shared with wm.js / contextmenu.js /
+ * desktop.js — do not rename classes.
+ */
+
+/* Design tokens (colors, fonts, radii, shadows, --menubar-h) and the shared
+   component kit live in theme.css, which index.html loads BEFORE this file.
+   desktop.css only styles the desktop-specific chrome (menu bar, icons,
+   windows, popups) on top of those tokens. */
+
+/* ======================================================================
+   Base
+   ====================================================================== */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+
+body {
+  font-family: var(--font-ui);
+  color: var(--ink);
+  background: #d8ded1; /* solid fallback behind the wallpaper */
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ======================================================================
+   Menu bar
+   ====================================================================== */
+.menubar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--menubar-h);
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  padding: 0 .6rem;
+  background: var(--chrome-bg);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  backdrop-filter: blur(14px) saturate(1.3);
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  z-index: 1000;
+}
+
+.menubar__logo {
+  font-size: 16px;
+  line-height: 1;
+  padding: .2rem .4rem;
+  border-radius: var(--radius-sm);
+  cursor: default;
+  user-select: none;
+}
+
+.menubar__menu {
+  padding: .2rem .55rem;
+  border-radius: var(--radius-sm);
+  cursor: default;
+  user-select: none;
+  color: var(--ink);
+}
+
+.menubar__logo:hover,
+.menubar__menu:hover,
+.menubar__menu.is-open,
+.menubar__logo.is-open {
+  background: rgba(0, 0, 0, 0.06);
+}
+:root[data-theme="dark"] .menubar__logo:hover,
+:root[data-theme="dark"] .menubar__menu:hover,
+:root[data-theme="dark"] .menubar__menu.is-open,
+:root[data-theme="dark"] .menubar__logo.is-open { background: rgba(255, 255, 255, 0.10); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .menubar__logo:hover,
+  :root:not([data-theme="light"]) .menubar__menu:hover,
+  :root:not([data-theme="light"]) .menubar__menu.is-open { background: rgba(255, 255, 255, 0.10); }
+}
+
+.menubar__spacer { flex: 1 1 auto; }
+
+/* Match theme.css's input[type=search] specificity (0,1,1) so this wins on
+   source order instead of losing width/padding/background to the generic
+   field styling. */
+.menubar__search,
+input[type="search"].menubar__search {
+  width: 180px;
+  max-width: 34vw;
+  height: 24px;
+  padding: 0 .6rem;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(30, 30, 20, 0.22);
+  border-radius: 999px;
+  outline: none;
+}
+/* Dark: lighten the field so it reads as an input on the dark bar. */
+:root[data-theme="dark"] .menubar__search {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .menubar__search {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.28);
+  }
+}
+.menubar__search:focus { border-color: var(--accent); }
+.menubar__search::placeholder { color: var(--ink-soft); opacity: 1; }
+
+.menubar__clock {
+  padding: 0 .4rem;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+  user-select: none;
+}
+
+/* ======================================================================
+   Desktop surface + window layer
+   ====================================================================== */
+.desktop {
+  position: absolute;
+  top: var(--menubar-h);
+  left: 0; right: 0; bottom: 0;
+  background: var(--desktop-bg);
+  overflow: hidden;
+}
+
+#windows {
+  position: absolute;
+  inset: 0;
+  pointer-events: none; /* only windows themselves are interactive */
+}
+#windows > .window { pointer-events: auto; }
+
+/* ======================================================================
+   Icons (desktop + inside folder windows)
+   ====================================================================== */
+.icon {
+  width: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .3rem;
+  padding: .5rem .35rem;
+  border-radius: var(--radius-sm);
+  cursor: default;
+  user-select: none;
+  text-align: center;
+}
+.icon:hover { background: rgba(0, 0, 0, 0.05); }
+:root[data-theme="dark"] .icon:hover { background: rgba(255, 255, 255, 0.06); }
+
+.icon__glyph {
+  width: 50px;
+  height: 50px;
+  background: var(--icon-ink);
+  -webkit-mask: var(--glyph) center / contain no-repeat;
+  mask: var(--glyph) center / contain no-repeat;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.18));
+}
+
+/* Friendly line-drawn glyphs (tinted via mask → theme-safe). */
+.icon--folder .icon__glyph {
+  --glyph: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='black' stroke-width='2.4' stroke-linejoin='round' stroke-linecap='round'><path d='M5 14a3 3 0 0 1 3-3h8.5l3.8 4H40a3 3 0 0 1 3 3v18a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3z'/><path d='M5 19h38' opacity='0.5'/></svg>");
+}
+.icon--app .icon__glyph {
+  --glyph: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='black' stroke-width='2.4' stroke-linejoin='round' stroke-linecap='round'><rect x='10' y='6' width='28' height='36' rx='4'/><path d='M10 15h28'/><path d='M16 24h16M16 30h11'/></svg>");
+}
+.icon--new .icon__glyph {
+  --glyph: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='black' stroke-width='2.4' stroke-linejoin='round' stroke-linecap='round'><rect x='10' y='6' width='28' height='36' rx='4'/><path d='M24 17v14M17 24h14'/></svg>");
+  background: var(--accent);
+}
+
+.icon__label {
+  font-size: 12px;
+  line-height: 1.25;
+  color: var(--ink);
+  padding: .05rem .35rem;
+  border-radius: 5px;
+  max-width: 90px;
+  word-break: break-word;
+  /* subtle legibility plate on busy wallpapers */
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+}
+:root[data-theme="dark"] .icon__label { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+
+.icon.is-selected .icon__label {
+  background: var(--selection-bg);
+  color: var(--selection-ink);
+  text-shadow: none;
+}
+.icon:focus { outline: none; }
+.icon:focus .icon__label { box-shadow: 0 0 0 2px var(--accent); }
+
+/* ======================================================================
+   Windows
+   ====================================================================== */
+.window {
+  position: absolute;
+  min-width: 240px;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel-bg);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  backdrop-filter: blur(18px) saturate(1.3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-win);
+  overflow: hidden;
+}
+
+.window__titlebar {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 .6rem;
+  background: var(--chrome-bg);
+  border-bottom: 1px solid var(--line);
+  cursor: move;
+  flex: 0 0 auto;
+}
+
+/* Vintage racing stripes retired in the modern look. */
+.window__stripes { display: none; }
+
+.window__title {
+  order: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Modern control cluster, top-right. */
+.window__close {
+  order: 3;
+  margin-left: auto;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #e0655a;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  position: relative;
+}
+.window:not(.is-active) .window__close { background: var(--line); }
+.window__close::after {
+  content: "×";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+}
+.window__close:hover::after { opacity: 1; }
+
+.window__body {
+  flex: 1 1 auto;
+  background: var(--panel-bg);
+  overflow: auto;
+  min-height: 0;
+}
+.window__body iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+  display: block;
+}
+/* While dragging/resizing a window, let pointer events pass through every
+   window's iframe so mousemove keeps reaching the parent document (wm.js
+   toggles .is-dragging on <body> for the duration of the gesture). */
+body.is-dragging .window__body iframe { pointer-events: none; }
+
+.window.is-collapsed .window__body,
+.window.is-collapsed .window__resize { display: none; }
+.window.is-collapsed { min-height: 0; height: auto !important; }
+
+.window:not(.is-active) { box-shadow: 0 8px 24px rgba(40, 38, 24, 0.14); }
+.window:not(.is-active) .window__title { color: var(--ink-soft); }
+
+.window__resize {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  background:
+    linear-gradient(135deg, transparent 0 45%, var(--ink-soft) 45% 55%, transparent 55% 70%, var(--ink-soft) 70% 80%, transparent 80%);
+  opacity: .5;
+}
+
+/* ======================================================================
+   Popup menus (context menus + menu-bar dropdowns)
+   ====================================================================== */
+.menu {
+  position: absolute;
+  min-width: 168px;
+  padding: .3rem;
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-pop);
+  font-size: 13px;
+  z-index: 3000;
+}
+.menu__item {
+  padding: .38rem .7rem;
+  border-radius: 5px;
+  color: var(--ink);
+  cursor: default;
+  white-space: nowrap;
+}
+.menu__item:hover,
+.menu__item.is-active { background: var(--selection-bg); color: var(--selection-ink); }
+.menu__item--disabled { color: var(--ink-soft); }
+.menu__item--disabled:hover { background: transparent; color: var(--ink-soft); }
+.menu__sep { height: 1px; margin: .3rem .2rem; background: var(--line); }
+
+/* ======================================================================
+   Buttons
+   ====================================================================== */
+.mac-btn {
+  display: inline-block;
+  padding: .4rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.mac-btn:hover { border-color: var(--accent); }
+.mac-btn--default {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: transparent;
+}
+.mac-btn--default:hover { filter: brightness(1.05); }
+
+/* ======================================================================
+   Classic alert (setup dialog)
+   ====================================================================== */
+.mac-alert__body { padding: 1.1rem 1.2rem .4rem; }
+.mac-alert__body p { margin-bottom: .5rem; line-height: 1.45; }
+.mac-alert__body p:last-child { color: var(--ink-soft); }
+.mac-alert__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: .5rem;
+  padding: .6rem 1.2rem 1.1rem;
+}

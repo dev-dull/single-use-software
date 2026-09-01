@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, Form, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
-from .catalog import all_tags, scan_apps
+from .catalog import scan_apps
 from .cleanup import start_cleanup_loop
 from .deps import get_identity_provider, resolve_identity
 from .identity import UserIdentity
@@ -52,13 +52,21 @@ _analytics_tracker = AnalyticsTracker()
 app.add_middleware(AnalyticsMiddleware, tracker=_analytics_tracker)
 
 
-# No-cache middleware — disable browser caching on all responses.
+# No-cache middleware — disable browser caching on dynamic responses.
 from starlette.middleware.base import BaseHTTPMiddleware
 
 class NoCacheMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         response = await call_next(request)
-        if request.url.path not in ("/healthz", "/readyz"):
+        path = request.url.path
+        if path.startswith("/static"):
+            # Static assets: `no-cache` (always revalidate, but get 304s from
+            # StaticFiles' ETag/Last-Modified) rather than no-store. Not
+            # header-less — that falls into heuristic freshness and, since the
+            # asset URLs aren't content-hashed, could pair new HTML with a stale
+            # cached script.
+            response.headers["Cache-Control"] = "no-cache"
+        elif path not in ("/healthz", "/readyz"):
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
@@ -83,6 +91,12 @@ async def _start_background_tasks() -> None:
 
 _templates_dir = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(_templates_dir))
+
+# Static assets (the vintage-Mac desktop CSS/JS live under static/).
+from fastapi.staticfiles import StaticFiles
+
+_static_dir = Path(__file__).resolve().parent / "static"
+app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
 
 # Identity resolution lives in ``deps`` to avoid circular imports; the names
 # are re-exported here for backward compatibility (e.g. ``routes.auth``).
@@ -179,26 +193,6 @@ async def api_catalog(
     )
 
 
-@app.get("/api/catalog/html", response_class=HTMLResponse)
-async def api_catalog_html(
-    request: Request,
-    identity: UserIdentity = Depends(resolve_identity),
-    q: str | None = None,
-    tags: list[str] = Query(default=[]),
-) -> HTMLResponse:
-    """Return just the catalog card grid as an HTML fragment for HTMX."""
-    catalog = scan_apps(
-        user_groups=list(identity.groups) if identity.groups else None,
-        query=q or None,
-        tags=tags or None,
-    )
-    return templates.TemplateResponse(
-        request,
-        "catalog_cards.html",
-        context={"catalog": catalog},
-    )
-
-
 @app.get("/", response_class=HTMLResponse)
 async def index(
     request: Request,
@@ -212,8 +206,6 @@ async def index(
         query=q or None,
         tags=tags or None,
     )
-    available_tags = all_tags()
-
     # Check setup status for the banner.
     setup_complete = False
     try:
@@ -234,8 +226,6 @@ async def index(
         context={
             "identity": identity,
             "catalog": catalog,
-            "available_tags": available_tags,
-            "active_tags": tags or [],
             "query": q or "",
             "setup_complete": setup_complete,
         },
