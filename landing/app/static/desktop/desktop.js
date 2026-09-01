@@ -183,17 +183,32 @@
   // --- menu-bar dropdowns --------------------------------------------------
 
   function dropdownBelow(el, items) {
-    // The outside-mousedown listener below (and ContextMenu's own) fire before
-    // this click handler, so a second click on an open title arrives with
-    // is-open already cleared. Record *why* it closed and use that flag to
-    // toggle shut instead of reopening.
+    // A second click on an open title arrives with is-open already cleared,
+    // because the mousedown listeners below fire before this click handler.
+    // __susClosedBySelf means "this title's mousedown dismissed a *visible*
+    // menu" — so a genuine re-click toggles shut, while a self-close
+    // (Escape/scroll/resize leaves no .menu) keeps the flag false and reopens.
     if (el.__susClosedBySelf) { el.__susClosedBySelf = false; return; }
     var r = el.getBoundingClientRect();
     el.classList.add("is-open");
-    var clear = function () { el.classList.remove("is-open"); document.removeEventListener("mousedown", onDown, true); };
-    var onDown = function (e) { el.__susClosedBySelf = el.contains(e.target); clear(); };
+    var clear = function () { el.classList.remove("is-open"); window.removeEventListener("mousedown", onDown, true); };
+    // window-capture fires before ContextMenu's document-capture teardown, so a
+    // still-present .menu here means THIS mousedown is what closed the menu.
+    var onDown = function (e) {
+      el.__susClosedBySelf = el.contains(e.target) && !!document.querySelector(".menu");
+      clear();
+    };
+    // If that mousedown started on the title but releases elsewhere, no click
+    // arrives to consume the flag — drop it so it can't eat the next click.
+    var onUp = function (e) {
+      window.removeEventListener("mouseup", onUp, true);
+      if (el.__susClosedBySelf && !el.contains(e.target)) el.__susClosedBySelf = false;
+    };
     // Defer so ContextMenu's own outside-close listeners settle first.
-    setTimeout(function () { document.addEventListener("mousedown", onDown, true); }, 0);
+    setTimeout(function () {
+      window.addEventListener("mousedown", onDown, true);
+      window.addEventListener("mouseup", onUp, true);
+    }, 0);
     window.ContextMenu.show(r.left, r.bottom, items);
   }
 
