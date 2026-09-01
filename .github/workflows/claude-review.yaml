@@ -47,24 +47,6 @@ jobs:
         with:
           version: v4.2.3
 
-      # TEMPORARY diagnostic: call the Anthropic API directly with the secret to
-      # capture the exact HTTP status + error body (the response never contains
-      # the key; GITHUB masks the secret value in logs). Remove after diagnosing.
-      - name: Diagnose Anthropic API auth
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          echo "secret present: $([ -n "$ANTHROPIC_API_KEY" ] && echo yes || echo NO)  length: ${#ANTHROPIC_API_KEY}"
-          code=$(curl -sS -o /tmp/resp.json -w "%{http_code}" https://api.anthropic.com/v1/messages \
-            -H "x-api-key: $ANTHROPIC_API_KEY" \
-            -H "anthropic-version: 2023-06-01" \
-            -H "content-type: application/json" \
-            -d '{"model":"claude-sonnet-5","max_tokens":16,"messages":[{"role":"user","content":"ping"}]}')
-          echo "HTTP status: $code"
-          echo "--- response body ---"
-          cat /tmp/resp.json || true
-          echo
-
       - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
