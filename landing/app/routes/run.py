@@ -168,32 +168,20 @@ def _starting_page(team: str, app_slug: str) -> HTMLResponse:
   <title>Starting {team}/{app_slug}...</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤨</text></svg>" />
   <meta http-equiv="refresh" content="5" />
+  <link rel="stylesheet" href="/static/desktop/theme.css" />
   <style>
-    :root {{
-      --bg: #f5f5f5;
-      --card-bg: #ffffff;
-      --text: #1a1a1a;
-      --muted: #666;
-      --accent: #2563eb;
-      --border: #e0e0e0;
-      --radius: 8px;
-    }}
-    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
     body {{
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: var(--bg); color: var(--text); line-height: 1.5;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       min-height: 100vh; padding: 2rem 1rem;
     }}
     .card {{
-      background: var(--card-bg); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 2.5rem 3rem;
+      padding: 2.5rem 3rem;
       max-width: 480px; width: 100%; text-align: center;
     }}
     .logo {{ font-size: 2.5rem; margin-bottom: 1rem; }}
     .spinner {{
       width: 40px; height: 40px;
-      border: 3px solid var(--border);
+      border: 3px solid var(--line);
       border-top: 3px solid var(--accent);
       border-radius: 50%;
       animation: spin 1s linear infinite;
@@ -201,11 +189,9 @@ def _starting_page(team: str, app_slug: str) -> HTMLResponse:
     }}
     @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
     h1 {{ font-size: 1.25rem; margin-bottom: .5rem; font-weight: 600; }}
-    p  {{ color: var(--muted); font-size: .9rem; margin: .25rem 0; }}
+    p  {{ color: var(--ink-soft); font-size: .9rem; margin: .25rem 0; }}
     .app-name {{ color: var(--accent); font-weight: 600; }}
-    .countdown {{ color: var(--muted); font-size: .8rem; margin-top: 1.5rem; }}
-    a {{ color: var(--accent); text-decoration: none; }}
-    a:hover {{ text-decoration: underline; }}
+    .countdown {{ color: var(--ink-soft); font-size: .8rem; margin-top: 1.5rem; }}
   </style>
   <script>
     const key = 'sus-starting-{team}-{app_slug}';
@@ -226,7 +212,7 @@ def _starting_page(team: str, app_slug: str) -> HTMLResponse:
             <p>This usually means the app has an error or is missing dependencies.</p>
             <p style="margin-top:1.5rem;">
               <a href="/build/{team}/{app_slug}">Open in build mode to investigate</a><br/>
-              <a href="/" style="color:var(--muted);">&larr; Back to catalog</a>
+              <a href="/" style="color:var(--ink-soft);">&larr; Back to catalog</a>
             </p>
           </div>`;
       }});

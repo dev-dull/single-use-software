@@ -32,6 +32,7 @@
     if (mode === "system") { root.removeAttribute("data-theme"); }
     else { root.setAttribute("data-theme", mode); }
     try { localStorage.setItem("sus-theme", mode); } catch (e) {}
+    applyThemeToFrames();
   }
 
   function initTheme() {
@@ -64,27 +65,69 @@
 
   // --- window openers ------------------------------------------------------
 
+  // In the desktop, a window's close box IS "back to catalog" — a platform page
+  // that navigates its own frame to "/" would load the whole desktop inside the
+  // window (SUS-in-SUS). These pages are same-origin, so once framed we hide
+  // their back-to-root nav. Wrapped in try/catch for any cross-origin frame.
+  function neutralizeFrame(iframe) {
+    try {
+      var doc = iframe.contentDocument;
+      if (!doc) return;
+      doc.documentElement.classList.add("sus-embedded");
+      doc.querySelectorAll('a[href="/"]').forEach(function (a) { a.style.display = "none"; });
+      // Framed pages are separate documents — mirror the desktop's theme choice.
+      var mode = document.documentElement.getAttribute("data-theme");
+      if (mode) doc.documentElement.setAttribute("data-theme", mode);
+    } catch (e) { /* cross-origin — leave it be */ }
+  }
+
+  // Propagate the current appearance to every open (same-origin) window.
+  function applyThemeToFrames() {
+    var mode = document.documentElement.getAttribute("data-theme");
+    $all("#windows .window__body iframe").forEach(function (f) {
+      try {
+        var doc = f.contentDocument;
+        if (!doc) return;
+        if (mode) doc.documentElement.setAttribute("data-theme", mode);
+        else doc.documentElement.removeAttribute("data-theme");
+      } catch (e) { /* cross-origin */ }
+    });
+  }
+
+  // Open a same-origin platform page (run/build/history/setup/…) in a window,
+  // then keep its in-page root nav neutralized across reloads.
+  function openFramed(opts) {
+    if (!window.WM) { window.location.href = opts.url; return null; }
+    var win = window.WM.open(opts);
+    if (!win) return win;
+    var iframe = win.querySelector(".window__body iframe");
+    if (iframe) {
+      neutralizeFrame(iframe);
+      iframe.addEventListener("load", function () { neutralizeFrame(iframe); });
+    }
+    return win;
+  }
+
   function openUrl(url, title, idHint) {
-    if (!window.WM) { window.location.href = url; return; }
-    window.WM.open({ id: "win-" + safeKey(idHint || url), title: title || url, url: url });
+    openFramed({ id: "win-" + safeKey(idHint || url), title: title || url, url: url });
   }
 
   function openApp(icon) {
     var name = icon.getAttribute("data-name") || "App";
     var key = safeKey(icon.getAttribute("data-team") + "-" + icon.getAttribute("data-slug"));
-    window.WM.open({ id: "run-" + key, title: name, url: icon.getAttribute("data-run-url") });
+    openFramed({ id: "run-" + key, title: name, url: icon.getAttribute("data-run-url") });
   }
 
   function buildApp(icon) {
     var name = icon.getAttribute("data-name") || "App";
     var key = safeKey(icon.getAttribute("data-team") + "-" + icon.getAttribute("data-slug"));
-    window.WM.open({ id: "build-" + key, title: "Build — " + name, url: icon.getAttribute("data-build-url") });
+    openFramed({ id: "build-" + key, title: "Build — " + name, url: icon.getAttribute("data-build-url") });
   }
 
   function historyApp(icon) {
     var name = icon.getAttribute("data-name") || "App";
     var key = safeKey(icon.getAttribute("data-team") + "-" + icon.getAttribute("data-slug"));
-    window.WM.open({ id: "hist-" + key, title: "History — " + name, url: icon.getAttribute("data-history-url") });
+    openFramed({ id: "hist-" + key, title: "History — " + name, url: icon.getAttribute("data-history-url") });
   }
 
   function openFolder(team) {
@@ -209,7 +252,11 @@
       matches.forEach(function (n) { frag.appendChild(n.cloneNode(true)); });
       inner = frag.outerHTML;
     }
-    window.WM.open({ id: "find", title: "Find", content: inner, width: 480, height: 300 });
+    var win = window.WM.open({ id: "find", title: "Find", content: inner, width: 480, height: 300 });
+    // WM.open de-dupes on id and ignores `content` when the window already
+    // exists, so write into the existing body as the query narrows.
+    var body = win && win.querySelector(".window__body");
+    if (body) body.innerHTML = inner;
   }
 
   function debounce(fn, ms) {
@@ -280,7 +327,7 @@
     if (data().setupComplete) return;
     var tpl = $("#setup-alert-tpl");
     if (!tpl || !window.WM) return;
-    window.WM.open({ id: "setup-alert", title: "SUS", content: tpl.innerHTML, width: 340, height: 200 });
+    window.WM.open({ id: "setup-alert", title: "SUS", content: tpl.innerHTML, width: 400, height: 270 });
   }
 
   // --- boot ---------------------------------------------------------------

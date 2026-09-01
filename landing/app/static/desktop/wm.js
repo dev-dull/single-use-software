@@ -224,6 +224,7 @@
     }
 
     function onUp() {
+      document.body.classList.remove('is-dragging');
       document.removeEventListener('mousemove', onMove, true);
       document.removeEventListener('mouseup', onUp, true);
       document.removeEventListener('touchmove', onMove, true);
@@ -231,6 +232,10 @@
       document.removeEventListener('touchcancel', onUp, true);
     }
 
+    // Shield iframes (pointer-events:none via CSS) so mousemove keeps reaching
+    // the parent document for the whole gesture instead of being swallowed the
+    // instant the cursor crosses a window's iframe body.
+    document.body.classList.add('is-dragging');
     document.addEventListener('mousemove', onMove, true);
     document.addEventListener('mouseup', onUp, true);
     document.addEventListener('touchmove', onMove, { capture: true, passive: false });
@@ -253,13 +258,21 @@
     var startWidth = el.offsetWidth || DEFAULT_WIDTH;
     var startHeight = el.offsetHeight || DEFAULT_HEIGHT;
 
+    // A window resizes from its fixed top-left corner, so cap width/height at
+    // the desktop edge — otherwise the overflow-hidden desktop clips the
+    // window and its off-screen resize grip becomes unclickable. Hoisted out
+    // of onMove (left/top don't change during a resize).
+    var layer = getLayerRect();
+    var elLeft = parseFloat(el.style.left) || 0;
+    var elTop = parseFloat(el.style.top) || 0;
+
     function onMove(moveEvt) {
       var p = getPoint(moveEvt);
       var newWidth = startWidth + (p.x - start.x);
       var newHeight = startHeight + (p.y - start.y);
 
-      newWidth = Math.max(MIN_WIDTH, newWidth);
-      newHeight = Math.max(MIN_HEIGHT, newHeight);
+      newWidth = clamp(newWidth, MIN_WIDTH, Math.max(MIN_WIDTH, layer.width - elLeft));
+      newHeight = clamp(newHeight, MIN_HEIGHT, Math.max(MIN_HEIGHT, layer.height - elTop));
 
       el.style.width = newWidth + 'px';
       el.style.height = newHeight + 'px';
@@ -268,6 +281,7 @@
     }
 
     function onUp() {
+      document.body.classList.remove('is-dragging');
       document.removeEventListener('mousemove', onMove, true);
       document.removeEventListener('mouseup', onUp, true);
       document.removeEventListener('touchmove', onMove, true);
@@ -275,6 +289,10 @@
       document.removeEventListener('touchcancel', onUp, true);
     }
 
+    // Shield iframes (pointer-events:none via CSS) so mousemove keeps reaching
+    // the parent document for the whole gesture instead of being swallowed the
+    // instant the cursor crosses a window's iframe body.
+    document.body.classList.add('is-dragging');
     document.addEventListener('mousemove', onMove, true);
     document.addEventListener('mouseup', onUp, true);
     document.addEventListener('touchmove', onMove, { capture: true, passive: false });
@@ -501,6 +519,21 @@
 
     return el;
   }
+
+  // Clicking inside a background window whose body is an <iframe> focuses the
+  // iframe, not the parent, so no mousedown reaches our per-window handler and
+  // the window never raises. Detect it: when the parent loses focus to an
+  // iframe, raise the window that iframe belongs to.
+  window.addEventListener('blur', function () {
+    setTimeout(function () {
+      var ae = document.activeElement;
+      if (!ae || ae.tagName !== 'IFRAME' || !ae.closest) return;
+      var win = ae.closest('.window');
+      if (!win) return;
+      var wid = win.getAttribute('data-window-id');
+      if (wid && windows[wid] && wid !== activeId) focus(wid);
+    }, 0);
+  }, false);
 
   // ---------------------------------------------------------------------------
   // Expose global API

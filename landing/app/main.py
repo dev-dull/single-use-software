@@ -52,13 +52,17 @@ _analytics_tracker = AnalyticsTracker()
 app.add_middleware(AnalyticsMiddleware, tracker=_analytics_tracker)
 
 
-# No-cache middleware — disable browser caching on all responses.
+# No-cache middleware — disable browser caching on dynamic responses.
 from starlette.middleware.base import BaseHTTPMiddleware
 
 class NoCacheMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         response = await call_next(request)
-        if request.url.path not in ("/healthz", "/readyz"):
+        path = request.url.path
+        # Skip probes, and skip static assets so StaticFiles' own
+        # ETag/Last-Modified revalidation (304s) works instead of re-downloading
+        # desktop.css / *.js in full on every page load.
+        if path not in ("/healthz", "/readyz") and not path.startswith("/static"):
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"

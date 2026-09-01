@@ -6,31 +6,15 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤨</text></svg>" />
   <title>Build: {{ team }}/{{ app_slug }}</title>
 
+  <link rel="stylesheet" href="/static/desktop/theme.css" />
+
   <style>
-    :root {
-      --bg-primary: #0d1117;
-      --bg-secondary: #161b22;
-      --bg-header: #1a1a2e;
-      --border-color: #30363d;
-      --text-primary: #e6edf3;
-      --text-secondary: #8b949e;
-      --accent: #58a6ff;
-      --accent-hover: #79b8ff;
-      --btn-save: #238636;
-      --btn-save-hover: #2ea043;
-      --btn-publish: #8957e5;
-      --btn-publish-hover: #a371f7;
-      --divider-width: 6px;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
     html, body {
       height: 100%;
       overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-      background: var(--bg-primary);
-      color: var(--text-primary);
+      font-family: var(--font-ui);
+      background: var(--panel-solid);
+      color: var(--ink);
     }
 
     .header {
@@ -39,53 +23,30 @@
       justify-content: space-between;
       height: 48px;
       padding: 0 16px;
-      background: var(--bg-header);
-      border-bottom: 1px solid var(--border-color);
+      background: var(--chrome-bg);
+      border-bottom: 1px solid var(--line);
     }
 
     .header-left { display: flex; align-items: center; gap: 16px; }
 
-    .header-left a {
-      color: var(--text-secondary);
-      text-decoration: none;
-      font-size: 14px;
-      transition: color 0.15s;
-    }
+    /* Neutralize the shared .back-link's block margin inside the flex header. */
+    .header-left .back-link { margin-bottom: 0; font-size: 14px; }
 
-    .header-left a:hover { color: var(--accent); }
-
-    .app-name { font-weight: 600; font-size: 15px; color: var(--text-primary); }
+    .app-name { font-weight: 600; font-size: 15px; color: var(--ink); }
 
     .header-right { display: flex; align-items: center; gap: 8px; }
-
-    .btn {
-      padding: 6px 16px;
-      border: none;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s;
-      color: #fff;
-    }
-
-    .btn-save { background: var(--btn-save); }
-    .btn-save:hover { background: var(--btn-save-hover); }
-    .btn-publish { background: var(--btn-publish); }
-    .btn-publish:hover { background: var(--btn-publish-hover); }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .panes {
       display: flex;
       height: calc(100vh - 48px);
-      background: var(--bg-primary);
+      background: var(--panel-solid);
     }
 
     .terminal-pane {
       flex: 0 0 50%;
       display: flex;
       flex-direction: column;
-      background: var(--bg-secondary);
+      background: var(--panel-2);
       min-width: 300px;
       overflow: hidden;
     }
@@ -93,9 +54,9 @@
     .terminal-pane-header {
       padding: 6px 12px;
       font-size: 12px;
-      color: var(--text-secondary);
-      background: var(--bg-secondary);
-      border-bottom: 1px solid var(--border-color);
+      color: var(--ink-soft);
+      background: var(--panel-2);
+      border-bottom: 1px solid var(--line);
       user-select: none;
     }
 
@@ -106,8 +67,8 @@
     }
 
     .divider {
-      flex: 0 0 var(--divider-width);
-      background: var(--border-color);
+      flex: 0 0 6px;
+      background: var(--line);
       cursor: col-resize;
       transition: background 0.15s;
       user-select: none;
@@ -129,9 +90,9 @@
       justify-content: space-between;
       padding: 6px 12px;
       font-size: 12px;
-      color: var(--text-secondary);
-      background: var(--bg-secondary);
-      border-bottom: 1px solid var(--border-color);
+      color: var(--ink-soft);
+      background: var(--panel-2);
+      border-bottom: 1px solid var(--line);
       user-select: none;
     }
 
@@ -139,16 +100,16 @@
       padding: 4px 14px;
       font-size: 12px;
       font-weight: 600;
-      color: #fff;
-      background: var(--accent);
-      border: none;
-      border-radius: 4px;
+      color: var(--ink);
+      background: var(--panel-solid);
+      border: 1px solid var(--line);
+      border-radius: 999px;
       cursor: pointer;
-      transition: background 0.15s;
+      transition: border-color 0.15s, filter 0.15s;
     }
 
     .btn-refresh:hover {
-      background: var(--accent-hover);
+      border-color: var(--accent);
     }
 
     #preview-iframe {
@@ -159,7 +120,7 @@
 
     .status-msg {
       padding: 2rem;
-      color: var(--text-secondary);
+      color: var(--ink-soft);
       font-size: 14px;
     }
 
@@ -170,8 +131,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: var(--bg-primary);
-      color: var(--text-secondary);
+      background: var(--panel-solid);
+      color: var(--ink-soft);
       z-index: 5;
       transition: opacity 0.25s;
     }
@@ -179,13 +140,13 @@
     .term-overlay .wrap { text-align: center; }
     .term-overlay .spinner {
       width: 34px; height: 34px; margin: 0 auto 1rem;
-      border: 3px solid var(--border-color);
+      border: 3px solid var(--line);
       border-top-color: var(--accent);
       border-radius: 50%;
       animation: term-spin 0.8s linear infinite;
     }
     .term-overlay p { font-size: 14px; margin: 0.3rem 0 0; }
-    .term-overlay .sub { font-size: 12px; color: var(--text-secondary); opacity: 0.75; }
+    .term-overlay .sub { font-size: 12px; color: var(--ink-soft); opacity: 0.75; }
     @keyframes term-spin { to { transform: rotate(360deg); } }
     .terminal-pane { position: relative; }
   </style>
@@ -194,12 +155,12 @@
 
   <div class="header">
     <div class="header-left">
-      <a href="/">&larr; Catalog</a>
+      <a href="/" class="back-link">&larr; Catalog</a>
       <span class="app-name">{{ team }}/{{ app_slug }}</span>
     </div>
     <div class="header-right">
-      <button class="btn btn-save" id="btn-save" onclick="doSave()">Save</button>
-      <button class="btn btn-publish" id="btn-publish" onclick="doPublish()">Publish</button>
+      <button class="btn" id="btn-save" onclick="doSave()">Save</button>
+      <button class="btn btn--primary" id="btn-publish" onclick="doPublish()">Publish</button>
     </div>
   </div>
 

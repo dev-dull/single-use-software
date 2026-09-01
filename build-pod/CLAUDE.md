@@ -124,6 +124,104 @@ The preview pane on the right is an **iframe** that proxies your app. This means
 
 ---
 
+## Matching the SUS Look & Feel (Theme + Style Guide)
+
+SUS has a shared visual theme — a warm, modern "desktop OS" aesthetic: soft and
+rounded, hairline borders, gentle shadows, one restrained warm-amber accent, and
+**automatic light and dark mode**. **Every app you build should adopt it** so all
+apps feel like part of the same product. Don't invent your own color scheme.
+
+### How to use it
+
+Add the platform stylesheet to your app's `<head>` — one line:
+
+```html
+<link rel="stylesheet" href="/static/desktop/theme.css" />
+```
+
+This is a stylesheet (a subresource fetch), **not** a navigation link, so it does
+NOT break the "stay within the iframe" rule above — the absolute path is safe here.
+It gives you the SUS design tokens (CSS variables), ready-made component classes,
+and automatic light/dark based on the viewer's system setting. Prefer the tokens
+and classes below over hand-picking colors.
+
+### Design principles
+
+- Soft and modern, not stark: rounded corners (`--radius`), 1px hairline borders
+  (`--line`), gentle shadows (`--shadow-card`).
+- **One** restrained accent (warm amber) for primary actions and highlights — avoid
+  lots of competing colors.
+- **Never hardcode hex colors** for text/background/borders. Use the tokens, so both
+  light and dark render correctly.
+
+### Design tokens (CSS variables)
+
+| Token | Use for |
+|-------|---------|
+| `--ink` | primary text |
+| `--ink-soft` | secondary / muted text |
+| `--line` | borders and dividers (hairline) |
+| `--panel-solid` | card / content surface |
+| `--panel-2` | recessed surface (table headers, code blocks) |
+| `--desktop-bg` / `--desktop-solid` | page background (SUS wallpaper) / a flat version |
+| `--accent` / `--accent-ink` | primary buttons & highlights / text on the accent |
+| `--accent-weak` | subtle accent tint (hovers, active rows) |
+| `--danger` / `--ok` | destructive actions / success |
+| `--radius` (12px) / `--radius-sm` (7px) | rounded corners |
+| `--shadow-card` | soft card shadow |
+| `--font-ui` / `--font-mono` | UI text / code |
+
+Example: `style="color: var(--ink-soft); background: var(--panel-solid); border: 1px solid var(--line); border-radius: var(--radius);"`
+
+### Component classes (prefer these over custom CSS)
+
+- **Layout:** `.sus-page` (centered content container), `.sus-header`.
+- **Buttons:** `.btn`, plus `.btn--primary` (amber, main action), `.btn--danger`
+  (destructive), `.btn--ghost` (transparent). e.g. `<button class="btn btn--primary">Save</button>`
+- **Forms:** `<input>`, `<select>`, `<textarea>` are styled automatically. Wrap each
+  field in `<div class="field">` with a `<label>`; add a `.hint` for helper text.
+- **Surfaces:** `.card` / `.panel` (bordered, rounded, shadowed box).
+- **Tables:** `.table` (add `class="is-active"` to a highlighted row).
+- **Badges:** `.badge`, `.badge--active`, `.badge--ok`.
+- **Toasts:** `.toast` + `.toast--ok` / `.toast--error`.
+- **Text:** `.muted` for secondary text; `pre` / `.code` for code.
+
+### Minimal example
+
+```html
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="/static/desktop/theme.css" />
+</head>
+<body>
+  <div class="sus-page">
+    <div class="sus-header"><h1>My App</h1></div>
+    <div class="card">
+      <div class="field">
+        <label for="name">Name</label>
+        <input id="name" name="name" placeholder="Type a name…" />
+      </div>
+      <button class="btn btn--primary">Save</button>
+    </div>
+  </div>
+</body>
+</html>
+```
+
+### Notes
+
+- **Dark mode is automatic** from the viewer's system preference — just use the
+  tokens; never hardcode a light- or dark-specific color.
+- `theme.css` sets the page `body` background to the SUS wallpaper (`--desktop-bg`).
+  For a plain content surface instead, set `body { background: var(--desktop-solid); }`
+  or place your content inside a `.card`.
+- If the stylesheet ever fails to load, the token table above is enough to match the
+  look by hand — define the same variables in your own `:root { }` block.
+
+---
+
 ## Auto-Runner (port 3000)
 
 A background runner process watches `/repo` every 5 seconds and automatically starts the appropriate server on **port 3000**:
