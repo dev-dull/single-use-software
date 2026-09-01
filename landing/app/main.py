@@ -84,6 +84,12 @@ async def _start_background_tasks() -> None:
 _templates_dir = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(_templates_dir))
 
+# Static assets (the vintage-Mac desktop CSS/JS live under static/).
+from fastapi.staticfiles import StaticFiles
+
+_static_dir = Path(__file__).resolve().parent / "static"
+app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
+
 # Identity resolution lives in ``deps`` to avoid circular imports; the names
 # are re-exported here for backward compatibility (e.g. ``routes.auth``).
 __all__ = ["app", "get_identity_provider", "resolve_identity"]
@@ -176,26 +182,6 @@ async def api_catalog(
         user_groups=list(identity.groups) if identity.groups else None,
         query=q or None,
         tags=tags or None,
-    )
-
-
-@app.get("/api/catalog/html", response_class=HTMLResponse)
-async def api_catalog_html(
-    request: Request,
-    identity: UserIdentity = Depends(resolve_identity),
-    q: str | None = None,
-    tags: list[str] = Query(default=[]),
-) -> HTMLResponse:
-    """Return just the catalog card grid as an HTML fragment for HTMX."""
-    catalog = scan_apps(
-        user_groups=list(identity.groups) if identity.groups else None,
-        query=q or None,
-        tags=tags or None,
-    )
-    return templates.TemplateResponse(
-        request,
-        "catalog_cards.html",
-        context={"catalog": catalog},
     )
 
 

@@ -1,0 +1,297 @@
+/*
+ * desktop.js — glue for the SUS vintage-Macintosh desktop.
+ *
+ * Wires the static DOM (menu bar + desktop icons) to the two modules:
+ *   - window.WM          (wm.js)          — draggable windows
+ *   - window.ContextMenu (contextmenu.js) — right-click & menu-bar popups
+ *
+ * Responsibilities: menu-bar clock, Apple/File/View dropdowns, icon
+ * selection, double-click to open (folders, apps, New App), right-click
+ * context menus (Open / Build / History), a "Find" search over all apps,
+ * a light/dark appearance toggle, and the first-run Setup alert.
+ */
+(function () {
+  "use strict";
+
+  // --- small helpers -------------------------------------------------------
+
+  function $(sel, root) { return (root || document).querySelector(sel); }
+  function $all(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+
+  function data() {
+    try { return JSON.parse($("#desktop-data").textContent) || {}; }
+    catch (e) { return {}; }
+  }
+
+  function safeKey(s) { return String(s || "").replace(/[^a-zA-Z0-9_-]/g, "_"); }
+
+  // --- appearance (light / dark / system) ---------------------------------
+
+  function setTheme(mode) {
+    var root = document.documentElement;
+    if (mode === "system") { root.removeAttribute("data-theme"); }
+    else { root.setAttribute("data-theme", mode); }
+    try { localStorage.setItem("sus-theme", mode); } catch (e) {}
+  }
+
+  function initTheme() {
+    var mode = null;
+    try { mode = localStorage.getItem("sus-theme"); } catch (e) {}
+    if (mode === "light" || mode === "dark") {
+      document.documentElement.setAttribute("data-theme", mode);
+    }
+    // "system" or null → leave to prefers-color-scheme.
+  }
+
+  // --- menu-bar clock ------------------------------------------------------
+
+  function startClock() {
+    var el = $("#menubar-clock");
+    if (!el) return;
+    function tick() {
+      var now = new Date();
+      var s;
+      try {
+        s = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+      } catch (e) {
+        s = now.getHours() + ":" + ("0" + now.getMinutes()).slice(-2);
+      }
+      el.textContent = s;
+    }
+    tick();
+    setInterval(tick, 15000);
+  }
+
+  // --- window openers ------------------------------------------------------
+
+  function openUrl(url, title, idHint) {
+    if (!window.WM) { window.location.href = url; return; }
+    window.WM.open({ id: "win-" + safeKey(idHint || url), title: title || url, url: url });
+  }
+
+  function openApp(icon) {
+    var name = icon.getAttribute("data-name") || "App";
+    var key = safeKey(icon.getAttribute("data-team") + "-" + icon.getAttribute("data-slug"));
+    window.WM.open({ id: "run-" + key, title: name, url: icon.getAttribute("data-run-url") });
+  }
+
+  function buildApp(icon) {
+    var name = icon.getAttribute("data-name") || "App";
+    var key = safeKey(icon.getAttribute("data-team") + "-" + icon.getAttribute("data-slug"));
+    window.WM.open({ id: "build-" + key, title: "Build — " + name, url: icon.getAttribute("data-build-url") });
+  }
+
+  function historyApp(icon) {
+    var name = icon.getAttribute("data-name") || "App";
+    var key = safeKey(icon.getAttribute("data-team") + "-" + icon.getAttribute("data-slug"));
+    window.WM.open({ id: "hist-" + key, title: "History — " + name, url: icon.getAttribute("data-history-url") });
+  }
+
+  function openFolder(team) {
+    var tpl = document.querySelector('template[data-folder="' + (window.CSS && CSS.escape ? CSS.escape(team) : team) + '"]');
+    var content = tpl ? tpl.innerHTML : '<div class="folder-view__empty">This folder is empty.</div>';
+    window.WM.open({ id: "folder-" + safeKey(team), title: team, content: content, width: 480, height: 320 });
+  }
+
+  function openAbout() {
+    var d = data();
+    var html =
+      '<div class="mac-alert__body" style="text-align:center;padding:1.25rem;">' +
+      '<div style="font-size:2.5rem;line-height:1;">🤨</div>' +
+      '<p style="margin-top:.5rem;"><strong>Single Use Software</strong></p>' +
+      '<p>Welcome, ' + escapeHtml(d.user || "friend") + ".</p>" +
+      "</div>";
+    window.WM.open({ id: "about", title: "About This Desktop", content: html, width: 300, height: 200 });
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  // --- menu-bar dropdowns --------------------------------------------------
+
+  function dropdownBelow(el, items) {
+    var r = el.getBoundingClientRect();
+    el.classList.add("is-open");
+    var clear = function () { el.classList.remove("is-open"); document.removeEventListener("mousedown", onDown, true); };
+    var onDown = function (e) { if (e.target !== el) clear(); };
+    // Defer so ContextMenu's own outside-close listeners settle first.
+    setTimeout(function () { document.addEventListener("mousedown", onDown, true); }, 0);
+    window.ContextMenu.show(r.left, r.bottom, items);
+  }
+
+  function appleMenu(el) {
+    dropdownBelow(el, [
+      { label: "About This Desktop", action: openAbout },
+      { separator: true },
+      { label: "New App…", action: function () { openUrl("/new", "New App", "new"); } },
+      { label: "Skills", action: function () { openUrl("/skills", "Skills", "skills"); } },
+      { label: "Analytics", action: function () { openUrl("/analytics", "Analytics", "analytics"); } },
+      { label: "Setup", action: function () { openUrl("/setup", "Setup", "setup"); } }
+    ]);
+  }
+
+  function fileMenu(el) {
+    dropdownBelow(el, [
+      { label: "New App…", action: function () { openUrl("/new", "New App", "new"); } },
+      { separator: true },
+      { label: "Find…", action: function () { var s = $("#desktop-search"); if (s) s.focus(); } }
+    ]);
+  }
+
+  function viewMenu(el) {
+    dropdownBelow(el, [
+      { label: "About This Desktop", action: openAbout },
+      { separator: true },
+      { label: "Appearance: Light", action: function () { setTheme("light"); } },
+      { label: "Appearance: Dark", action: function () { setTheme("dark"); } },
+      { label: "Appearance: System", action: function () { setTheme("system"); } }
+    ]);
+  }
+
+  // --- selection -----------------------------------------------------------
+
+  function selectOnly(icon) {
+    $all(".icon.is-selected").forEach(function (n) { if (n !== icon) n.classList.remove("is-selected"); });
+    if (icon) icon.classList.add("is-selected");
+  }
+
+  // --- icon context menus --------------------------------------------------
+
+  function appMenu(icon, x, y) {
+    window.ContextMenu.show(x, y, [
+      { label: "Open", action: function () { openApp(icon); } },
+      { separator: true },
+      { label: "Build", action: function () { buildApp(icon); } },
+      { label: "History", action: function () { historyApp(icon); } }
+    ]);
+  }
+
+  function folderMenu(team, x, y) {
+    window.ContextMenu.show(x, y, [
+      { label: "Open", action: function () { openFolder(team); } }
+    ]);
+  }
+
+  // --- "Find" search over all apps ----------------------------------------
+
+  function allAppIcons() {
+    // Clone every app icon out of the per-team templates into one array.
+    var out = [];
+    $all("template[data-folder]").forEach(function (tpl) {
+      $all(".icon--app", tpl.content).forEach(function (node) { out.push(node); });
+    });
+    return out;
+  }
+
+  function runSearch(q) {
+    q = (q || "").trim().toLowerCase();
+    if (!q) { if (window.WM) window.WM.close("find"); return; }
+
+    var matches = allAppIcons().filter(function (node) {
+      var hay = [
+        node.getAttribute("data-name"),
+        node.getAttribute("data-team"),
+        node.getAttribute("data-desc"),
+        node.getAttribute("data-tags")
+      ].join(" ").toLowerCase();
+      return hay.indexOf(q) !== -1;
+    });
+
+    var inner;
+    if (!matches.length) {
+      inner = '<div class="folder-view__empty">No apps match “' + escapeHtml(q) + '”.</div>';
+    } else {
+      var frag = document.createElement("div");
+      frag.className = "folder-view";
+      matches.forEach(function (n) { frag.appendChild(n.cloneNode(true)); });
+      inner = frag.outerHTML;
+    }
+    window.WM.open({ id: "find", title: "Find", content: inner, width: 480, height: 300 });
+  }
+
+  function debounce(fn, ms) {
+    var t;
+    return function () { var a = arguments, c = this; clearTimeout(t); t = setTimeout(function () { fn.apply(c, a); }, ms); };
+  }
+
+  // --- event wiring --------------------------------------------------------
+
+  function wire() {
+    // Menu bar.
+    var logo = $("#apple-menu"); if (logo) logo.addEventListener("click", function () { appleMenu(logo); });
+    $all(".menubar__menu").forEach(function (m) {
+      m.addEventListener("click", function () {
+        var which = m.getAttribute("data-menu");
+        if (which === "file") fileMenu(m);
+        else if (which === "view") viewMenu(m);
+      });
+    });
+
+    // Search.
+    var search = $("#desktop-search");
+    if (search) {
+      var deb = debounce(function () { runSearch(search.value); }, 180);
+      search.addEventListener("input", deb);
+      search.addEventListener("search", function () { runSearch(search.value); });
+    }
+
+    // Icon interactions via delegation (covers desktop + opened folder/find windows).
+    document.addEventListener("click", function (e) {
+      var icon = e.target.closest ? e.target.closest(".icon") : null;
+      if (icon) { selectOnly(icon); return; }
+      // Click on empty space clears selection (but not clicks in the menu bar).
+      if (!e.target.closest || !e.target.closest("#menubar, .menu, .window")) selectOnly(null);
+    });
+
+    document.addEventListener("dblclick", function (e) {
+      var icon = e.target.closest ? e.target.closest(".icon") : null;
+      if (!icon) return;
+      if (icon.classList.contains("icon--folder")) { openFolder(icon.getAttribute("data-team")); }
+      else if (icon.classList.contains("icon--app")) { openApp(icon); }
+      else if (icon.hasAttribute("data-open-url")) { openUrl(icon.getAttribute("data-open-url"), icon.getAttribute("data-title") || "SUS", icon.getAttribute("data-open-url")); }
+    });
+
+    document.addEventListener("contextmenu", function (e) {
+      var icon = e.target.closest ? e.target.closest(".icon") : null;
+      if (!icon) return; // let the browser menu appear off-icon
+      e.preventDefault();
+      selectOnly(icon);
+      if (icon.classList.contains("icon--app")) appMenu(icon, e.clientX, e.clientY);
+      else if (icon.classList.contains("icon--folder")) folderMenu(icon.getAttribute("data-team"), e.clientX, e.clientY);
+    });
+
+    // Enter/Return opens the selected icon (keyboard nicety).
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter") return;
+      var icon = document.activeElement && document.activeElement.closest ? document.activeElement.closest(".icon") : null;
+      if (!icon) return;
+      if (icon.classList.contains("icon--folder")) openFolder(icon.getAttribute("data-team"));
+      else if (icon.classList.contains("icon--app")) openApp(icon);
+      else if (icon.hasAttribute("data-open-url")) openUrl(icon.getAttribute("data-open-url"), icon.getAttribute("data-title") || "SUS", icon.getAttribute("data-open-url"));
+    });
+  }
+
+  // --- first-run setup alert ----------------------------------------------
+
+  function maybeSetupAlert() {
+    if (data().setupComplete) return;
+    var tpl = $("#setup-alert-tpl");
+    if (!tpl || !window.WM) return;
+    window.WM.open({ id: "setup-alert", title: "SUS", content: tpl.innerHTML, width: 340, height: 200 });
+  }
+
+  // --- boot ---------------------------------------------------------------
+
+  function boot() {
+    initTheme();
+    startClock();
+    wire();
+    maybeSetupAlert();
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
