@@ -182,10 +182,16 @@ input[type="search"].menubar__search {
   font-size: 12px;
   line-height: 1.25;
   color: var(--ink);
-  padding: .05rem .35rem;
+  padding: .05rem .2rem;
   border-radius: 5px;
-  max-width: 90px;
-  word-break: break-word;
+  max-width: 100%;
+  /* Wrap on word boundaries, break a word only if it can't fit, and cap at
+     two lines with an ellipsis so a long name never balloons the icon. */
+  overflow-wrap: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   /* subtle legibility plate on busy wallpapers */
   text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
 }
