@@ -277,27 +277,12 @@ Git operations happen automatically in the background. **Never mention git to th
 
 The SUS platform exposes APIs that apps can call. The base URL is available as the `SUS_API_URL` environment variable.
 
-### Secrets Management
+### Secrets
 
-Apps can manage Kubernetes secrets in the SUS namespace through these endpoints:
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `$SUS_API_URL/api/secrets` | List all secrets (names and key names only, never values) |
-| GET | `$SUS_API_URL/api/secrets/{name}` | Get a secret's key names |
-| GET | `$SUS_API_URL/api/secrets/{name}?values=true` | Get a secret's key names **and values** |
-| POST | `$SUS_API_URL/api/secrets` | Create a secret. Body: `{"name": "...", "data": {"KEY": "value"}}` |
-| PUT | `$SUS_API_URL/api/secrets/{name}` | Update a secret. Body: `{"data": {"KEY": "value"}}` |
-| DELETE | `$SUS_API_URL/api/secrets/{name}` | Delete a secret |
-
-**Reading values:** Use `?values=true` to get decoded secret values. Without this parameter, only key names are returned.
-
-Example from a Python app:
-```python
-import os, httpx
-API = os.environ["SUS_API_URL"]
-secrets = httpx.get(f"{API}/api/secrets").json()
-```
+Secret management (`/api/secrets`) is **operator-only** and not available from a
+build or run pod — requests from here are rejected. Credentials your app needs at
+runtime are provided by the operator as environment variables; ask the user to add
+any new secret through the SUS platform rather than calling the API.
 
 ---
 
