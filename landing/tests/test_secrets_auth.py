@@ -6,6 +6,9 @@ The router exposes CRUD over cluster secrets. It must reject unauthenticated
 authenticated operator.
 """
 
+import importlib
+import pathlib
+import re
 from types import SimpleNamespace
 
 import app.routes.secrets as secrets_mod
@@ -52,6 +55,18 @@ def test_guest_is_rejected_on_all_routes():
     assert c.delete("/api/secrets/app-config").status_code == 403
 
 
+# --- the /setup router writes the same secrets, so it is gated too (#79) --
+
+def test_setup_routes_require_operator():
+    # /setup/{git-token,api-key,repo-url} write the platform's own credentials;
+    # a guest (any build/run pod) must not reach them.
+    c = _client(_GUEST)
+    assert c.get("/setup").status_code == 403
+    assert c.post("/setup/api-key", data={"api_key": "sk-x"}).status_code == 403
+    assert c.post("/setup/git-token", data={"git_token": "ghp_x"}).status_code == 403
+    assert c.post("/setup/repo-url", data={"repo_url": "https://evil/r"}).status_code == 403
+
+
 # --- the denylist: platform secrets stay hidden/immutable to an operator --
 
 def test_operator_list_excludes_protected(monkeypatch):
@@ -88,3 +103,41 @@ def test_protected_set_is_extensible(monkeypatch):
     assert secrets_mod._is_protected("another")
     assert secrets_mod._is_protected("sus-git-token")  # defaults still apply
     assert not secrets_mod._is_protected("app-config")
+
+
+# --- denylist must cover every platform-managed secret --------------------
+# In single-user mode and in open-proxy (no trusted_proxies) mode the auth gate
+# is bypassed and this denylist is the *only* thing protecting platform creds
+# from a pod. So if a future module starts managing a secret, its name must be
+# in _DEFAULT_PROTECTED_SECRETS. Discover such modules by source scan (avoids
+# import side effects), then import the matches and assert coverage.
+
+_APP_DIR = pathlib.Path(secrets_mod.__file__).resolve().parent.parent  # landing/app
+_DEFINES_SECRET_NAME = re.compile(r"^SECRET_NAME\s*=", re.MULTILINE)
+
+
+def _modules_defining_secret_name():
+    mods = []
+    for py in _APP_DIR.rglob("*.py"):
+        if _DEFINES_SECRET_NAME.search(py.read_text()):
+            rel = py.relative_to(_APP_DIR).with_suffix("")
+            mods.append("app." + ".".join(rel.parts))
+    return mods
+
+
+def test_denylist_covers_all_platform_secret_names():
+    modules = _modules_defining_secret_name()
+    # The git-token and api-key managers are the baseline; fail loudly if the
+    # scan finds nothing (e.g. constant renamed) rather than passing vacuously.
+    assert modules, "expected modules defining SECRET_NAME (git_token, api_key)"
+    protected = secrets_mod._DEFAULT_PROTECTED_SECRETS
+    missing = []
+    for dotted in modules:
+        name = getattr(importlib.import_module(dotted), "SECRET_NAME", None)
+        if name and name not in protected:
+            missing.append((dotted, name))
+    assert not missing, (
+        f"platform-managed secrets missing from _DEFAULT_PROTECTED_SECRETS: "
+        f"{missing} — add them so they stay protected when the auth gate is "
+        f"bypassed (single-user / open-proxy modes)"
+    )

@@ -300,7 +300,7 @@ On build mode entry:
 * **Loading page** with spinner while run pod starts (5-min timeout with error)
 * Setup page for API key, Git token, and repo URL (K8s secrets/configmap)
 * Optional Helm Ingress template with WebSocket annotation examples
-* SUS Platform API for secrets management (`/api/secrets`, apps can manage credentials)
+* Operator-only secrets management API (`/api/secrets`); build/run pods are rejected
 * Pluggable identity provider interface (defaults to single-user)
 * Guidance skills framework with authoring guide
 * Usage analytics and version history tracking

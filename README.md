@@ -292,7 +292,7 @@ make redeploy     # Rebuild + upgrade + restart
 - `/skills` — Manage guidance skills for Claude
 - `/debug/build-chain/{team}/{app}` — Diagnostic endpoint that tests the full build pipeline
 - `/debug/env` — Show configured environment variables
-- `/api/secrets` — Manage K8s secrets (used by apps via the SUS Platform API)
+- `/api/secrets` — Manage K8s secrets (operator-only; not accessible to build/run pods)
 
 ---
 
