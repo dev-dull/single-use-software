@@ -9,8 +9,10 @@
 #     SUS_API_URL — legitimately needed today)
 #
 # Residual risk: because workload pods retain access on the same port, an
-# in-cluster app pod can still reach the API surface directly. Closing that is
-# tracked separately (authenticate /api/secrets — #79; validate pod_ip — #80).
+# in-cluster app pod can still reach the API surface directly. The sensitive
+# credential routes (/api/secrets, /setup) are now gated to operator identities
+# (#79) — pods resolve to "guest" and are rejected. Validating pod_ip is tracked
+# separately (#80).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

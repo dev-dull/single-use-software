@@ -6,17 +6,22 @@ import logging
 import os
 from pathlib import Path
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from ..api_key import APIKeyManager
+from ..deps import require_operator
 from ..git_token import GitTokenManager
 from ..repo_config import RepoConfigManager
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/setup")
+# Operator-only: these routes write the platform's git token / Anthropic key and
+# the catalog repo URL. Build/run pods resolve to the anonymous "guest" identity,
+# so without this gate a pod could overwrite the very credentials the secrets API
+# protects — the same app→platform escalation as #79, via a different router.
+router = APIRouter(prefix="/setup", dependencies=[Depends(require_operator)])
 
 _templates_dir = Path(__file__).resolve().parent.parent / "templates"
 _templates = Jinja2Templates(directory=str(_templates_dir))
